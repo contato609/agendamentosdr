@@ -172,7 +172,14 @@
     padding: 1.1rem; cursor: pointer; text-align: left; font-family: inherit; color: inherit;
     transition: border-color 0.15s, transform 0.15s; position: relative; overflow: hidden;
   }
-  .product-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .product-card:hover, .product-card:focus-visible { border-color: var(--accent); transform: translateY(-1px); outline: none; }
+  .product-card .p-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .product-card .p-foot .meta { margin-top: 0; }
+  .product-card .p-actions { display: flex; gap: 4px; }
+  .product-card .p-actions .btn-sm { background: var(--bg-primary); font-size: 11px; padding: 2px 8px; }
+  .title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .btn-danger { padding: 10px 16px; font-size: 14px; font-weight: 500; background: var(--red); color: #fff; border: none; border-radius: var(--radius-md); cursor: pointer; font-family: inherit; }
+  .btn-danger:hover { opacity: 0.88; }
   .product-card .stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
   .product-card h3 { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
   .product-card .loc { font-size: 12px; color: var(--text-secondary); }
@@ -284,8 +291,13 @@
     <!-- ── Produtos ── -->
     <section class="page active" id="page-produtos">
       <div id="products-list">
-        <div class="page-title">Produtos</div>
-        <div class="page-sub">Escolha o empreendimento para abrir a agenda e marcar uma visita.</div>
+        <div class="title-row">
+          <div>
+            <div class="page-title">Produtos</div>
+            <div class="page-sub">Escolha o empreendimento para abrir a agenda e marcar uma visita.</div>
+          </div>
+          <button class="btn-primary" id="new-product-btn" hidden>+ Novo produto</button>
+        </div>
         <div class="products-grid" id="products-grid"></div>
       </div>
       <div id="product-calendar" hidden>
@@ -423,6 +435,11 @@ function supabaseApi() {
       if (p.id) return must(await sb.from('products').update(p).eq('id', p.id).select().single());
       return must(await sb.from('products').insert(p).select().single());
     },
+    // Exclui o produto; com withVisits, apaga antes as visitas vinculadas a ele.
+    async deleteProduct(id, withVisits) {
+      if (withVisits) must(await sb.from('visits').delete().eq('product_id', id));
+      must(await sb.from('products').delete().eq('id', id));
+    },
     async updateProfile(id, patch) { return must(await sb.from('profiles').update(patch).eq('id', id).select().single()); },
     // Criação de login: Edge Function `create-sdr` (usa a service role no servidor).
     async createUser(u) {
@@ -495,6 +512,10 @@ function demoApi() {
     async saveProduct(p) {
       if (p.id) { const x = db.products.find(y => y.id === p.id); Object.assign(x, p); save(db); return clone(x); }
       const r = { ...p, id: uid() }; db.products.push(r); save(db); return clone(r);
+    },
+    async deleteProduct(id, withVisits) {
+      if (!withVisits && db.visits.some(v => v.product_id === id)) throw new Error('Produto possui visitas vinculadas.');
+      db.visits = db.visits.filter(v => v.product_id !== id); db.products = db.products.filter(p => p.id !== id); save(db);
     },
     async updateProfile(id, patch) { const u = db.users.find(x => x.id === id); Object.assign(u, patch); save(db); return clone(u); },
     async createUser(u) {
@@ -580,6 +601,8 @@ async function enterApp(session) {
   $('user-name').textContent = state.me.full_name;
   $('user-avatar').textContent = initials(state.me.full_name);
   $('nav-admin').hidden = !isAdmin();
+  state.calProduct = null;
+  switchTab('produtos');
   await refresh();
 }
 
@@ -683,26 +706,44 @@ function filtered(prefix) {
 function renderProducts() {
   if (state.calProduct) return renderCalendar();
   $('products-list').hidden = false; $('product-calendar').hidden = true;
+  $('new-product-btn').hidden = !isAdmin();
   const active = state.products.filter(p => p.active !== false);
   if (!active.length) {
-    $('products-grid').innerHTML = `<div class="empty">Nenhum produto cadastrado.${isAdmin() ? ' Cadastre em Administração.' : ''}</div>`;
+    $('products-grid').innerHTML = `<div class="empty">Nenhum produto cadastrado.${isAdmin() ? ' Clique em “+ Novo produto” para criar o primeiro.' : ' Peça ao gestor para cadastrar.'}</div>`;
     return;
   }
   $('products-grid').innerHTML = active.map(p => {
     const pending = state.visits.filter(v => v.product_id === p.id && v.status === 'agendada').length;
-    return `<button class="product-card" data-id="${esc(p.id)}">
+    return `<div class="product-card" role="button" tabindex="0" data-id="${esc(p.id)}" aria-label="Abrir agenda de ${esc(p.name)}">
       <span class="stripe" style="background:${esc(p.color || '#378ADD')}"></span>
       <h3>${esc(p.name)}</h3>
       <div class="loc">${esc(p.location || '')}</div>
-      <div class="meta">${pending} visita${pending === 1 ? '' : 's'} agendada${pending === 1 ? '' : 's'}</div>
-    </button>`;
+      <div class="p-foot">
+        <div class="meta">${pending} visita${pending === 1 ? '' : 's'} agendada${pending === 1 ? '' : 's'}</div>
+        ${isAdmin() ? `<div class="p-actions">
+          <button class="btn-sm" data-pact="edit" title="Editar produto">Editar</button>
+          <button class="btn-sm btn-no" data-pact="delete" title="Excluir produto">Excluir</button>
+        </div>` : ''}
+      </div>
+    </div>`;
   }).join('');
+}
+function openProductCalendar(id) {
+  state.calProduct = id; state.calMonth = startOfMonth(new Date());
+  renderCalendar();
 }
 $('products-grid').addEventListener('click', e => {
   const c = e.target.closest('.product-card'); if (!c) return;
-  state.calProduct = c.dataset.id; state.calMonth = startOfMonth(new Date());
-  renderCalendar();
+  const act = e.target.closest('[data-pact]');
+  if (act?.dataset.pact === 'edit') return openProductModal(productById(c.dataset.id));
+  if (act?.dataset.pact === 'delete') return openDeleteProductModal(productById(c.dataset.id));
+  openProductCalendar(c.dataset.id);
 });
+$('products-grid').addEventListener('keydown', e => {
+  const c = e.target.closest('.product-card');
+  if (c && e.target === c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openProductCalendar(c.dataset.id); }
+});
+$('new-product-btn').addEventListener('click', () => openProductModal());
 $('back-products').addEventListener('click', () => { state.calProduct = null; renderProducts(); });
 $('cal-prev').addEventListener('click', () => { state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth() - 1, 1); renderCalendar(); });
 $('cal-next').addEventListener('click', () => { state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth() + 1, 1); renderCalendar(); });
@@ -774,7 +815,7 @@ function modal(html, onSubmit) {
     if (!form.reportValidity()) return;
     const btn = form.querySelector('[type=submit]'); if (btn) btn.disabled = true;
     const err = form.querySelector('.modal-error');
-    try { await onSubmit(new FormData(form), form); close(); }
+    try { await onSubmit(new FormData(form), form, e.submitter); close(); }
     catch (ex) { if (err) { err.textContent = errMsg(ex); err.hidden = false; } }
     finally { if (btn) btn.disabled = false; }
   });
@@ -999,7 +1040,7 @@ function renderAdmin() {
   $('admin-products').innerHTML = state.products.length ? `<table><tbody>${state.products.map(p => `<tr>
     <td><span class="dot" style="background:${esc(p.color)}"></span>${esc(p.name)}<div class="muted">${esc(p.location || '')}</div></td>
     <td>${p.active !== false ? '<span class="pill pill-ok">Ativo</span>' : '<span class="pill pill-no">Inativo</span>'}</td>
-    <td class="actions"><button class="btn-sm" data-edit-product="${esc(p.id)}">Editar</button></td></tr>`).join('')}</tbody></table>`
+    <td class="actions"><button class="btn-sm" data-edit-product="${esc(p.id)}">Editar</button><button class="btn-sm btn-no" data-delete-product="${esc(p.id)}">Excluir</button></td></tr>`).join('')}</tbody></table>`
     : '<div class="empty">Nenhum produto.</div>';
   $('admin-users').innerHTML = `<table><tbody>${state.profiles.map(u => `<tr>
     <td>${esc(u.full_name)}<div class="muted">${u.role === 'admin' ? 'Gestor' : 'SDR'}</div></td>
@@ -1008,7 +1049,43 @@ function renderAdmin() {
 }
 
 $('add-product-btn').addEventListener('click', () => openProductModal());
-$('admin-products').addEventListener('click', e => { const b = e.target.closest('[data-edit-product]'); if (b) openProductModal(productById(b.dataset.editProduct)); });
+$('admin-products').addEventListener('click', e => {
+  const ed = e.target.closest('[data-edit-product]'); if (ed) return openProductModal(productById(ed.dataset.editProduct));
+  const del = e.target.closest('[data-delete-product]'); if (del) openDeleteProductModal(productById(del.dataset.deleteProduct));
+});
+
+// Exclusão: sem visitas, apaga direto; com visitas, oferece desativar (mantém o histórico do dashboard) ou apagar tudo.
+function openDeleteProductModal(p) {
+  if (!p) return;
+  const linked = state.visits.filter(v => v.product_id === p.id);
+  const pending = linked.filter(v => v.status === 'agendada').length;
+  const body = linked.length
+    ? `<p style="font-size:14px;margin-bottom:10px">Este produto tem <b>${linked.length} visita${linked.length === 1 ? '' : 's'}</b> registrada${linked.length === 1 ? '' : 's'}${pending ? ` (${pending} ainda agendada${pending === 1 ? '' : 's'})` : ''}.</p>
+       <p style="font-size:13px;color:var(--text-secondary)"><b>Desativar</b> tira o produto da aba Produtos e mantém o histórico no dashboard.<br><b>Excluir tudo</b> apaga o produto e todas essas visitas. Não dá para desfazer.</p>`
+    : `<p style="font-size:14px">O produto será apagado. Não dá para desfazer.</p>`;
+  modal(`
+    <h2>Excluir “${esc(p.name)}”?</h2><div class="sub">${esc(p.location || '')}</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    ${body}
+    <div class="modal-actions" style="margin-top:16px;flex-wrap:wrap">
+      <button class="btn-secondary" data-close>Cancelar</button>
+      ${linked.length ? `<button class="btn-secondary" type="submit" value="deactivate">Desativar</button>
+      <button class="btn-danger" type="submit" value="all">Excluir tudo</button>`
+      : `<button class="btn-danger" type="submit" value="delete">Excluir produto</button>`}
+    </div>`,
+  async (_fd, _form, submitter) => {
+    const choice = submitter?.value;
+    if (choice === 'deactivate') {
+      await api.saveProduct({ id: p.id, active: false });
+      toast('Produto desativado. O histórico continua no dashboard.');
+    } else {
+      await api.deleteProduct(p.id, choice === 'all');
+      toast('Produto excluído.');
+    }
+    if (state.calProduct === p.id) state.calProduct = null;
+    await refresh();
+  });
+}
 function openProductModal(p) {
   modal(`
     <h2>${p ? 'Editar produto' : 'Novo produto'}</h2><div class="sub">Empreendimento disponível para agendamento.</div>
