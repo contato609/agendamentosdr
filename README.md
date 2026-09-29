@@ -22,7 +22,7 @@ na conta, para a taxa não cair só porque a visita ainda não aconteceu.
 
 0. **Publicação** — no GitHub, Settings → Pages → *Build and deployment*: Source **Deploy from a branch**,
    branch **main**, pasta **/ (root)** → Save. Em 1–2 minutos o site fica no endereço acima.
-1. **Banco** — no Supabase (projeto `pzwnvuypmwsgnoihkxzq`), SQL Editor → rode
+1. **Banco** — no Supabase (projeto `dtkoiiuhsjaxaalulkwz`), SQL Editor → rode
    `supabase/migrations/20260929000000_visitas_garantidas.sql`
    (ou `supabase db push`). Cria `profiles`, `products`, `visits`, o gatilho que cria o perfil ao criar
    um usuário, as políticas RLS e 3 produtos de exemplo (edite os nomes).
