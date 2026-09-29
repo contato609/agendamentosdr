@@ -224,6 +224,17 @@
   .pill-late { background: var(--amber-bg); color: var(--amber-text); }
   .pill-ok { background: var(--green-bg); color: var(--green-text); }
   .pill-no { background: var(--red-bg); color: var(--red-text); }
+  .pill-sale { background: var(--green-bg); color: var(--green-text); font-weight: 500; }
+  .subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
+  .subtab {
+    font-size: 13px; padding: 6px 14px; border-radius: 999px; border: 0.5px solid var(--border-md);
+    background: transparent; color: var(--text-secondary); cursor: pointer; font-family: inherit;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .subtab:hover { background: var(--bg-primary); }
+  .subtab.active { background: var(--blue-bg); color: var(--blue-text); border-color: transparent; font-weight: 500; }
+  .subtab .badge { font-size: 11px; }
+  .money { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .muted { color: var(--text-tertiary); font-size: 12px; }
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
   .empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-tertiary); font-size: 14px; }
@@ -321,7 +332,11 @@
     <!-- ── Visitas agendadas ── -->
     <section class="page" id="page-agendadas">
       <div class="page-title">Visitas agendadas</div>
-      <div class="page-sub">Quando a visita acontecer, marque como realizada — ela passa para a aba Visitas realizadas.</div>
+      <div class="page-sub">Depois da data da visita, ela passa para “Aguardando feedback” até você confirmar se o cliente compareceu.</div>
+      <div class="subtabs" id="ag-subtabs">
+        <button class="subtab active" data-sub="proximas">Agendadas <span class="badge" id="ag-count-proximas">0</span></button>
+        <button class="subtab" data-sub="feedback">Aguardando feedback <span class="badge" id="ag-count-feedback">0</span></button>
+      </div>
       <div class="filters">
         <select id="ag-f-product"></select>
         <select id="ag-f-sdr"></select>
@@ -332,14 +347,16 @@
     <!-- ── Visitas realizadas ── -->
     <section class="page" id="page-realizadas">
       <div class="page-title">Visitas realizadas</div>
-      <div class="page-sub">Histórico de visitas concluídas com a observação de cada uma.</div>
+      <div class="page-sub">Registre se o cliente comprou: “Vendeu” pede o VGV gerado, “Não vendeu” pede o motivo.</div>
+      <div class="subtabs" id="re-subtabs">
+        <button class="subtab active" data-sub="compareceu">Compareceu <span class="badge" id="re-count-compareceu">0</span></button>
+        <button class="subtab" data-sub="nao_compareceu">Não compareceu <span class="badge" id="re-count-nao_compareceu">0</span></button>
+        <button class="subtab" data-sub="vendeu">Vendeu <span class="badge" id="re-count-vendeu">0</span></button>
+        <button class="subtab" data-sub="nao_vendeu">Não vendeu <span class="badge" id="re-count-nao_vendeu">0</span></button>
+      </div>
       <div class="filters">
         <select id="re-f-product"></select>
         <select id="re-f-sdr"></select>
-        <select id="re-f-status">
-          <option value="realizada">Compareceram</option>
-          <option value="nao_compareceu">Não compareceram</option>
-        </select>
       </div>
       <div class="card"><div class="table-wrap" id="re-table"></div></div>
     </section>
@@ -364,6 +381,12 @@
         <div class="kpi"><div class="lbl">Taxa de show up</div><div class="val" id="k-rate">—</div><div class="sub" id="k-rate-sub"></div></div>
         <div class="kpi"><div class="lbl">Agendadas presenciais</div><div class="val" id="k-pres">0</div><div class="sub" id="k-pres-sub"></div></div>
       </div>
+      <div class="grid4" style="margin-bottom:1rem">
+        <div class="kpi"><div class="lbl">Aguardando feedback</div><div class="val" id="k-feedback">0</div><div class="sub">visitas passadas sem confirmação</div></div>
+        <div class="kpi"><div class="lbl">Total de vendas</div><div class="val" id="k-sales">0</div><div class="sub" id="k-sales-sub"></div></div>
+        <div class="kpi"><div class="lbl">VGV vendido</div><div class="val money" id="k-vgv">R$ 0</div><div class="sub" id="k-vgv-sub"></div></div>
+        <div class="kpi"><div class="lbl">Taxa de conversão</div><div class="val" id="k-conv">—</div><div class="sub" id="k-conv-sub"></div></div>
+      </div>
       <div class="card">
         <div class="card-header">
           <div class="card-title">Agendadas × comparecidas por semana</div>
@@ -371,10 +394,8 @@
         </div>
         <div class="chart-wrap"><canvas id="db-chart" role="img" aria-label="Visitas agendadas e comparecidas por semana"></canvas></div>
       </div>
-      <div class="grid2">
-        <div class="card"><div class="card-title" style="margin-bottom:.75rem">Por produto</div><div class="table-wrap" id="db-by-product"></div></div>
-        <div class="card"><div class="card-title" style="margin-bottom:.75rem">Por SDR responsável</div><div class="table-wrap" id="db-by-sdr"></div></div>
-      </div>
+      <div class="card"><div class="card-title" style="margin-bottom:.75rem">Por produto</div><div class="table-wrap" id="db-by-product"></div></div>
+      <div class="card"><div class="card-title" style="margin-bottom:.75rem">Por SDR responsável</div><div class="table-wrap" id="db-by-sdr"></div></div>
       <div class="card">
         <div class="card-title" style="margin-bottom:.75rem">Próximas visitas presenciais</div>
         <div class="table-wrap" id="db-pres-list"></div>
@@ -455,7 +476,7 @@ function supabaseApi() {
 // Camada de dados — Demonstração (localStorage)
 // ══════════════════════════════════════════════════════════════════════════════
 function demoApi() {
-  const KEY = 'moon-visitas-demo';
+  const KEY = 'moon-visitas-demo-v2';
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };
   const save = db => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} };
@@ -485,6 +506,9 @@ function demoApi() {
         sdr_id: i % 2 ? 'u-ana' : 'u-bruno', status,
         completion_notes: status === 'realizada' ? 'Visitou o decorado, pediu simulação de financiamento.' : null,
         completed_at: status !== 'agendada' ? d.toISOString() : null, created_by: 'u-admin', created_at: now.toISOString(),
+        sale_status: status === 'realizada' ? (i % 3 === 0 ? 'vendeu' : i % 3 === 1 ? 'nao_vendeu' : null) : null,
+        vgv: status === 'realizada' && i % 3 === 0 ? 450000 + i * 25000 : null,
+        sale_notes: status === 'realizada' && i % 3 === 1 ? 'Achou o valor da entrada alto.' : null,
       });
     });
     db = { users, products, visits, session: null };
@@ -534,6 +558,7 @@ const api = DEMO ? demoApi() : supabaseApi();
 const state = {
   me: null, products: [], profiles: [], visits: [],
   tab: 'produtos', calProduct: null, calMonth: startOfMonth(new Date()),
+  agSub: 'proximas', reSub: 'compareceu',
 };
 let chart = null;
 
@@ -550,6 +575,18 @@ const profileById = id => state.profiles.find(p => p.id === id);
 const productName = id => productById(id)?.name ?? '—';
 const sdrName = id => profileById(id)?.full_name ?? '—';
 const isAdmin = () => state.me?.role === 'admin';
+const brl = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const brl2 = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+// Aceita "1.250.000", "1250000,50", "R$ 850.000,00", "850000.5".
+function parseBRL(str) {
+  let t = String(str || '').replace(/[^\d,.-]/g, '');
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  else if ((t.match(/\./g) || []).length > 1 || /\.\d{3}$/.test(t)) t = t.replace(/\./g, '');
+  const n = Number(t);
+  return Number.isFinite(n) ? n : NaN;
+}
+// Visita agendada cuja data já passou e ainda não recebeu baixa.
+const isAwaitingFeedback = (v, now = new Date()) => v.status === 'agendada' && new Date(v.scheduled_at) < now;
 const initials = n => (n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0].toUpperCase()).join('');
 
 function toast(msg) {
@@ -678,6 +715,7 @@ async function refresh() {
 
 function render() {
   $('badge-agendadas').textContent = state.visits.filter(v => v.status === 'agendada').length;
+  $('badge-agendadas').title = `${state.visits.filter(v => isAwaitingFeedback(v)).length} aguardando feedback`;
   ({ produtos: renderProducts, agendadas: renderAgendadas, realizadas: renderRealizadas, dashboard: renderDashboard, admin: renderAdmin })[state.tab]?.();
 }
 
@@ -692,8 +730,18 @@ function fillFilters() {
     ps.value = pv; ss.value = sv;
   });
 }
-['ag-f-product', 'ag-f-sdr', 're-f-product', 're-f-sdr', 're-f-status', 'db-f-product', 'db-f-sdr', 'db-f-period']
+['ag-f-product', 'ag-f-sdr', 're-f-product', 're-f-sdr', 'db-f-product', 'db-f-sdr', 'db-f-period']
   .forEach(id => $(id).addEventListener('change', render));
+function bindSubtabs(id, key) {
+  $(id).addEventListener('click', e => {
+    const b = e.target.closest('.subtab'); if (!b) return;
+    state[key] = b.dataset.sub;
+    $(id).querySelectorAll('.subtab').forEach(x => x.classList.toggle('active', x === b));
+    render();
+  });
+}
+bindSubtabs('ag-subtabs', 'agSub');
+bindSubtabs('re-subtabs', 'reSub');
 
 function filtered(prefix) {
   const p = $(`${prefix}-f-product`).value, s = $(`${prefix}-f-sdr`).value;
@@ -874,22 +922,33 @@ function openVisitModal({ product_id, date, visit }) {
 // Aba Visitas agendadas
 // ══════════════════════════════════════════════════════════════════════════════
 function renderAgendadas() {
-  const rows = filtered('ag').filter(v => v.status === 'agendada');
-  if (!rows.length) { $('ag-table').innerHTML = '<div class="empty">Nenhuma visita agendada. Vá em Produtos para marcar uma.</div>'; return; }
   const now = new Date();
+  const base = filtered('ag').filter(v => v.status === 'agendada');
+  const feedback = base.filter(v => isAwaitingFeedback(v, now));
+  const upcoming = base.filter(v => !isAwaitingFeedback(v, now));
+  $('ag-count-proximas').textContent = upcoming.length;
+  $('ag-count-feedback').textContent = feedback.length;
+  const isFeedback = state.agSub === 'feedback';
+  const rows = isFeedback ? feedback.slice().reverse() : upcoming;
+  if (!rows.length) {
+    $('ag-table').innerHTML = isFeedback
+      ? '<div class="empty">Nenhuma visita aguardando feedback.</div>'
+      : '<div class="empty">Nenhuma visita agendada. Vá em Produtos para marcar uma.</div>';
+    return;
+  }
   $('ag-table').innerHTML = `<table>
     <thead><tr><th>Data da visita</th><th>Cliente</th><th>Produto</th><th>Modalidade</th><th>SDR responsável</th><th></th></tr></thead>
     <tbody>${rows.map(v => {
       const late = new Date(v.scheduled_at) < now;
       const p = productById(v.product_id);
       return `<tr>
-        <td>${fmtDateTime(v.scheduled_at)} ${late ? '<span class="pill pill-late">aguardando baixa</span>' : ''}</td>
+        <td>${fmtDateTime(v.scheduled_at)} ${late ? '<span class="pill pill-late">aguardando feedback</span>' : ''}</td>
         <td>${esc(v.client_name)}${v.notes ? `<div class="muted">${esc(v.notes)}</div>` : ''}</td>
         <td><span class="dot" style="background:${esc(p?.color || '#888')}"></span>${esc(productName(v.product_id))}</td>
         <td><span class="pill pill-${v.modality}">${v.modality === 'presencial' ? 'Presencial' : 'Online'}</span></td>
         <td>${esc(sdrName(v.sdr_id))}</td>
         <td class="actions">
-          <button class="btn-sm btn-ok" data-act="done" data-id="${esc(v.id)}">✓ Realizada</button>
+          <button class="btn-sm btn-ok" data-act="done" data-id="${esc(v.id)}">✓ Compareceu</button>
           <button class="btn-sm btn-no" data-act="noshow" data-id="${esc(v.id)}">Não compareceu</button>
           <button class="btn-sm" data-act="edit" data-id="${esc(v.id)}">Editar</button>
         </td>
@@ -907,7 +966,7 @@ $('ag-table').addEventListener('click', e => {
 function openCompleteModal(v, status) {
   const done = status === 'realizada';
   modal(`
-    <h2>${done ? 'Marcar como realizada' : 'Cliente não compareceu'}</h2>
+    <h2>${done ? 'Cliente compareceu' : 'Cliente não compareceu'}</h2>
     <div class="sub">${esc(v.client_name)} · ${esc(productName(v.product_id))} · ${fmtDateTime(v.scheduled_at)}</div>
     <div class="alert alert-error modal-error" hidden></div>
     <div class="field"><label>Observação da visita${done ? '' : ' (opcional)'}</label>
@@ -927,21 +986,57 @@ function openCompleteModal(v, status) {
 // Aba Visitas realizadas
 // ══════════════════════════════════════════════════════════════════════════════
 function renderRealizadas() {
-  const status = $('re-f-status').value;
-  const rows = filtered('re').filter(v => v.status === status).sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at));
+  const base = filtered('re');
+  const groups = {
+    compareceu: base.filter(v => v.status === 'realizada'),
+    nao_compareceu: base.filter(v => v.status === 'nao_compareceu'),
+    vendeu: base.filter(v => v.status === 'realizada' && v.sale_status === 'vendeu'),
+    nao_vendeu: base.filter(v => v.status === 'realizada' && v.sale_status === 'nao_vendeu'),
+  };
+  Object.entries(groups).forEach(([k, list]) => { $(`re-count-${k}`).textContent = list.length; });
+  const sub = state.reSub;
+  const rows = groups[sub].slice().sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at));
   if (!rows.length) { $('re-table').innerHTML = '<div class="empty">Nenhuma visita aqui ainda.</div>'; return; }
+
+  const result = v => {
+    if (v.sale_status === 'vendeu') return `<span class="pill pill-sale money">Vendeu · ${brl(v.vgv)}</span>`;
+    if (v.sale_status === 'nao_vendeu') return '<span class="pill pill-no">Não vendeu</span>';
+    return `<div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn-sm btn-ok" data-sale="vendeu" data-id="${esc(v.id)}">Vendeu</button>
+      <button class="btn-sm btn-no" data-sale="nao_vendeu" data-id="${esc(v.id)}">Não vendeu</button></div>`;
+  };
+  const cols = {
+    compareceu: ['Observação da visita', v => esc(v.completion_notes || '—'), 'Resultado', result],
+    nao_compareceu: ['Observação', v => esc(v.completion_notes || '—')],
+    vendeu: ['VGV', v => `<span class="money"><b>${brl2(v.vgv)}</b></span>`, 'Observação da venda', v => esc(v.sale_notes || '—')],
+    nao_vendeu: ['Motivo de não comprar', v => esc(v.sale_notes || '—'), 'Observação da visita', v => `<span class="muted">${esc(v.completion_notes || '—')}</span>`],
+  }[sub];
+  const extraHead = [], extraCell = [];
+  for (let i = 0; i < cols.length; i += 2) { extraHead.push(cols[i]); extraCell.push(cols[i + 1]); }
+
   $('re-table').innerHTML = `<table>
-    <thead><tr><th>Data da visita</th><th>Cliente</th><th>Observação</th><th>Produto</th><th>SDR</th><th></th></tr></thead>
+    <thead><tr><th>Data da visita</th><th>Cliente</th>${extraHead.map(h => `<th>${h}</th>`).join('')}<th>Produto</th><th>SDR</th><th></th></tr></thead>
     <tbody>${rows.map(v => `<tr>
       <td style="white-space:nowrap">${fmtDate(v.scheduled_at)}</td>
       <td>${esc(v.client_name)}</td>
-      <td>${esc(v.completion_notes || '—')}</td>
+      ${extraCell.map(fn => `<td>${fn(v)}</td>`).join('')}
       <td class="muted">${esc(productName(v.product_id))}</td>
       <td class="muted">${esc(sdrName(v.sdr_id))}</td>
-      <td class="actions"><button class="btn-sm" data-undo="${esc(v.id)}" title="Voltar para agendadas">Desfazer</button></td>
+      <td class="actions">${v.sale_status
+        ? `<button class="btn-sm" data-undo-sale="${esc(v.id)}" title="Apagar o resultado da venda">Refazer resultado</button>`
+        : `<button class="btn-sm" data-undo="${esc(v.id)}" title="Voltar para agendadas">Desfazer</button>`}</td>
     </tr>`).join('')}</tbody></table>`;
 }
 $('re-table').addEventListener('click', async e => {
+  const sale = e.target.closest('[data-sale]');
+  if (sale) return openSaleModal(state.visits.find(x => x.id === sale.dataset.id), sale.dataset.sale);
+  const undoSale = e.target.closest('[data-undo-sale]');
+  if (undoSale) {
+    if (!confirm('Apagar o resultado da venda desta visita?')) return;
+    try { await api.updateVisit(undoSale.dataset.undoSale, { sale_status: null, vgv: null, sale_notes: null, sale_at: null }); await refresh(); }
+    catch (err) { toast(errMsg(err)); }
+    return;
+  }
   const b = e.target.closest('[data-undo]'); if (!b) return;
   if (!confirm('Voltar esta visita para Visitas agendadas?')) return;
   try {
@@ -949,6 +1044,36 @@ $('re-table').addEventListener('click', async e => {
     await refresh();
   } catch (err) { toast(errMsg(err)); }
 });
+
+function openSaleModal(v, outcome) {
+  if (!v) return;
+  const sold = outcome === 'vendeu';
+  const form = modal(`
+    <h2>${sold ? 'Vendeu' : 'Não vendeu'}</h2>
+    <div class="sub">${esc(v.client_name)} · ${esc(productName(v.product_id))} · ${fmtDate(v.scheduled_at)}</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    ${sold ? `<div class="field"><label>VGV gerado (R$)</label>
+      <input name="vgv" type="text" inputmode="decimal" required placeholder="Ex.: 850.000,00" autocomplete="off"></div>` : ''}
+    <div class="field"><label>${sold ? 'Observação da venda (opcional)' : 'Por que o cliente não quis comprar?'}</label>
+      <textarea name="sale_notes" ${sold ? '' : 'required'} placeholder="${sold ? 'Unidade, forma de pagamento, condições…' : 'Preço, localização, financiamento, timing…'}"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" data-close>Cancelar</button>
+      <button class="btn-primary" type="submit">Confirmar</button>
+    </div>`,
+  async fd => {
+    const patch = { sale_status: outcome, sale_notes: fd.get('sale_notes').trim() || null, sale_at: new Date().toISOString(), vgv: null };
+    if (sold) {
+      const n = parseBRL(fd.get('vgv'));
+      if (!Number.isFinite(n) || n <= 0) throw new Error('Informe o VGV em reais, por exemplo 850.000,00.');
+      patch.vgv = Math.round(n * 100) / 100;
+    }
+    await api.updateVisit(v.id, patch);
+    toast(sold ? `Venda registrada: ${brl2(patch.vgv)}.` : 'Registrado como não vendeu.');
+    await refresh();
+  });
+  const input = form.querySelector('[name=vgv]');
+  input?.addEventListener('blur', () => { const n = parseBRL(input.value); if (Number.isFinite(n) && n > 0) input.value = n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); });
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Dashboard
@@ -977,15 +1102,34 @@ function renderDashboard() {
   $('k-pres').textContent = pres.length;
   $('k-pres-sub').textContent = `de ${pending.length} ainda agendadas`;
 
+  const sales = vs.filter(v => v.status === 'realizada' && v.sale_status === 'vendeu');
+  const lost = vs.filter(v => v.status === 'realizada' && v.sale_status === 'nao_vendeu').length;
+  const vgv = sales.reduce((a, v) => a + Number(v.vgv || 0), 0);
+  const conv = shown ? Math.round(sales.length / shown * 100) : null;
+  $('k-feedback').textContent = vs.filter(v => isAwaitingFeedback(v, now)).length;
+  $('k-sales').textContent = sales.length;
+  $('k-sales-sub').textContent = `${lost} não vendeu · ${shown - sales.length - lost} sem resultado`;
+  $('k-vgv').textContent = brl(vgv);
+  $('k-vgv-sub').textContent = sales.length ? `ticket médio ${brl(vgv / sales.length)}` : 'nenhuma venda no período';
+  $('k-conv').textContent = conv === null ? '—' : conv + '%';
+  $('k-conv-sub').textContent = shown ? `${sales.length} vendas de ${shown} comparecidas` : 'sem visitas comparecidas';
+
   const group = (key, label) => {
     const m = {};
-    vs.forEach(v => { const g = (m[v[key]] ||= { total: 0, shown: 0, concl: 0, pres: 0 }); g.total++; if (v.status === 'realizada') g.shown++; if (v.status !== 'agendada') g.concl++; if (v.status === 'agendada' && v.modality === 'presencial') g.pres++; });
+    vs.forEach(v => {
+      const g = (m[v[key]] ||= { total: 0, shown: 0, concl: 0, sales: 0, vgv: 0 });
+      g.total++;
+      if (v.status === 'realizada') g.shown++;
+      if (v.status === 'realizada' || v.status === 'nao_compareceu') g.concl++;
+      if (v.status === 'realizada' && v.sale_status === 'vendeu') { g.sales++; g.vgv += Number(v.vgv || 0); }
+    });
     const rows = Object.entries(m).sort((a, b) => b[1].total - a[1].total);
     if (!rows.length) return '<div class="empty">Sem dados para o filtro.</div>';
-    return `<table><thead><tr><th>${label}</th><th>Agend.</th><th>Compar.</th><th>Show up</th><th>Presenc.</th></tr></thead><tbody>${rows.map(([id, g]) => {
+    return `<table><thead><tr><th>${label}</th><th>Agend.</th><th>Compar.</th><th>Show up</th><th>Vendas</th><th>Conv.</th><th>VGV</th></tr></thead><tbody>${rows.map(([id, g]) => {
       const r = g.concl ? Math.round(g.shown / g.concl * 100) : null;
       return `<tr><td>${esc(key === 'product_id' ? productName(id) : sdrName(id))}</td><td>${g.total}</td><td>${g.shown}</td>
-        <td><div style="display:flex;align-items:center;gap:8px"><div class="bar-track" style="flex:1"><div class="bar-fill" style="width:${r ?? 0}%"></div></div><span>${r === null ? '—' : r + '%'}</span></div></td><td>${g.pres}</td></tr>`;
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="bar-track" style="flex:1"><div class="bar-fill" style="width:${r ?? 0}%"></div></div><span>${r === null ? '—' : r + '%'}</span></div></td>
+        <td>${g.sales}</td><td>${g.shown ? Math.round(g.sales / g.shown * 100) + '%' : '—'}</td><td class="money">${brl(g.vgv)}</td></tr>`;
     }).join('')}</tbody></table>`;
   };
   $('db-by-product').innerHTML = group('product_id', 'Produto');

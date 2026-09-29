@@ -26,6 +26,8 @@ na conta, para a taxa não cair só porque a visita ainda não aconteceu.
    `supabase/migrations/20260929000000_visitas_garantidas.sql`
    (ou `supabase db push`). Cria `profiles`, `products`, `visits`, o gatilho que cria o perfil ao criar
    um usuário, as políticas RLS e 3 produtos de exemplo (edite os nomes).
+   Depois rode também `supabase/migrations/20260929020000_resultado_venda.sql`
+   (colunas de venda: vendeu/não vendeu, VGV e motivo).
 2. **Criação de logins** — publique a Edge Function: `supabase functions deploy create-sdr`.
    Ela usa a service role no servidor e só aceita chamadas de gestores.
 3. **Primeiro gestor** — em Authentication → Users → *Add user* crie o seu usuário (marque *Auto confirm*),
@@ -48,3 +50,11 @@ na conta, para a taxa não cair só porque a visita ainda não aconteceu.
 
 Abra https://agendamentosdr.sistemadevisitas.com/?demo para usar sem backend (dados de exemplo salvos no navegador, qualquer e-mail/senha).
 Útil para treinar a equipe antes de ligar o banco.
+
+## Resultado comercial
+
+- **Aguardando feedback**: toda visita agendada cuja data já passou aparece nessa sub-aba até alguém marcar
+  *Compareceu* ou *Não compareceu*.
+- **Visitas realizadas** tem as sub-abas *Compareceu*, *Não compareceu*, *Vendeu* e *Não vendeu*.
+  Em *Compareceu*, os botões **Vendeu** (pede o VGV em R$) e **Não vendeu** (pede o motivo).
+- **Taxa de conversão** = vendas ÷ visitas comparecidas. **VGV vendido** soma o VGV das vendas do período.
