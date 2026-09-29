@@ -54,7 +54,8 @@ Abra https://agendamentosdr.sistemadevisitas.com/?demo para usar sem backend (da
 ## Resultado comercial
 
 - **Aguardando feedback**: toda visita agendada cuja data já passou aparece nessa sub-aba até alguém marcar
-  *Compareceu* ou *Não compareceu*.
+  *Compareceu* ou *Não compareceu*. Também dá para mandar manualmente pelo botão **Aguardando feedback**
+  (requer `supabase/migrations/20260929030000_aguardando_feedback.sql`).
 - **Visitas realizadas** tem as sub-abas *Compareceu*, *Não compareceu*, *Vendeu* e *Não vendeu*.
   Em *Compareceu*, os botões **Vendeu** (pede o VGV em R$) e **Não vendeu** (pede o motivo).
 - **Taxa de conversão** = vendas ÷ visitas comparecidas. **VGV vendido** soma o VGV das vendas do período.

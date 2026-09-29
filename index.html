@@ -586,7 +586,11 @@ function parseBRL(str) {
   return Number.isFinite(n) ? n : NaN;
 }
 // Visita agendada cuja data já passou e ainda não recebeu baixa.
-const isAwaitingFeedback = (v, now = new Date()) => v.status === 'agendada' && new Date(v.scheduled_at) < now;
+// Visita em aberto: agendada ou movida manualmente para "aguardando feedback".
+const isOpen = v => v.status === 'agendada' || v.status === 'aguardando_feedback';
+// Aguardando feedback: movida manualmente, ou agendada cuja data já passou sem baixa.
+const isAwaitingFeedback = (v, now = new Date()) =>
+  v.status === 'aguardando_feedback' || (v.status === 'agendada' && new Date(v.scheduled_at) < now);
 const initials = n => (n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0].toUpperCase()).join('');
 
 function toast(msg) {
@@ -598,6 +602,8 @@ function errMsg(e) {
   const m = e?.message || String(e);
   if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
   if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail antes de entrar.';
+  if (/visits_status_check/i.test(m)) return 'O banco ainda não aceita "aguardando feedback". Rode o SQL 20260929030000_aguardando_feedback.sql no Supabase.';
+  if (/schema cache/i.test(m)) return 'O banco está desatualizado. Rode os SQLs novos da pasta supabase/migrations no Supabase.';
   return m;
 }
 
@@ -714,7 +720,7 @@ async function refresh() {
 }
 
 function render() {
-  $('badge-agendadas').textContent = state.visits.filter(v => v.status === 'agendada').length;
+  $('badge-agendadas').textContent = state.visits.filter(isOpen).length;
   $('badge-agendadas').title = `${state.visits.filter(v => isAwaitingFeedback(v)).length} aguardando feedback`;
   ({ produtos: renderProducts, agendadas: renderAgendadas, realizadas: renderRealizadas, dashboard: renderDashboard, admin: renderAdmin })[state.tab]?.();
 }
@@ -761,7 +767,7 @@ function renderProducts() {
     return;
   }
   $('products-grid').innerHTML = active.map(p => {
-    const pending = state.visits.filter(v => v.product_id === p.id && v.status === 'agendada').length;
+    const pending = state.visits.filter(v => v.product_id === p.id && isOpen(v)).length;
     return `<div class="product-card" role="button" tabindex="0" data-id="${esc(p.id)}" aria-label="Abrir agenda de ${esc(p.name)}">
       <span class="stripe" style="background:${esc(p.color || '#378ADD')}"></span>
       <h3>${esc(p.name)}</h3>
@@ -839,7 +845,7 @@ $('cal-grid').addEventListener('click', e => {
 // Lista das visitas de um dia passado (somente leitura).
 function openDayModal(date) {
   const evs = state.visits.filter(v => v.product_id === state.calProduct && ymd(new Date(v.scheduled_at)) === date);
-  const st = { agendada: 'Agendada', realizada: 'Realizada', nao_compareceu: 'Não compareceu' };
+  const st = { agendada: 'Agendada', aguardando_feedback: 'Aguardando feedback', realizada: 'Realizada', nao_compareceu: 'Não compareceu' };
   modal(`<h2>${fmtDate(date + 'T12:00')}</h2><div class="sub">${esc(productName(state.calProduct))}</div>
     <table>${evs.map(v => `<tr><td>${hm(new Date(v.scheduled_at))}</td><td>${esc(v.client_name)}</td><td>${st[v.status]}</td></tr>`).join('')}</table>
     <div class="modal-actions"><button class="btn-secondary" data-close>Fechar</button></div>`);
@@ -923,7 +929,7 @@ function openVisitModal({ product_id, date, visit }) {
 // ══════════════════════════════════════════════════════════════════════════════
 function renderAgendadas() {
   const now = new Date();
-  const base = filtered('ag').filter(v => v.status === 'agendada');
+  const base = filtered('ag').filter(isOpen);
   const feedback = base.filter(v => isAwaitingFeedback(v, now));
   const upcoming = base.filter(v => !isAwaitingFeedback(v, now));
   $('ag-count-proximas').textContent = upcoming.length;
@@ -939,7 +945,8 @@ function renderAgendadas() {
   $('ag-table').innerHTML = `<table>
     <thead><tr><th>Data da visita</th><th>Cliente</th><th>Produto</th><th>Modalidade</th><th>SDR responsável</th><th></th></tr></thead>
     <tbody>${rows.map(v => {
-      const late = new Date(v.scheduled_at) < now;
+      const late = isAwaitingFeedback(v, now);
+      const manual = v.status === 'aguardando_feedback';
       const p = productById(v.product_id);
       return `<tr>
         <td>${fmtDateTime(v.scheduled_at)} ${late ? '<span class="pill pill-late">aguardando feedback</span>' : ''}</td>
@@ -950,17 +957,28 @@ function renderAgendadas() {
         <td class="actions">
           <button class="btn-sm btn-ok" data-act="done" data-id="${esc(v.id)}">✓ Compareceu</button>
           <button class="btn-sm btn-no" data-act="noshow" data-id="${esc(v.id)}">Não compareceu</button>
+          ${late ? '' : `<button class="btn-sm" data-act="feedback" data-id="${esc(v.id)}" title="A visita já aconteceu: aguardar o retorno do cliente">Aguardando feedback</button>`}
+          ${manual && new Date(v.scheduled_at) >= now ? `<button class="btn-sm" data-act="unfeedback" data-id="${esc(v.id)}">Voltar p/ agendadas</button>` : ''}
           <button class="btn-sm" data-act="edit" data-id="${esc(v.id)}">Editar</button>
         </td>
       </tr>`;
     }).join('')}</tbody></table>`;
 }
-$('ag-table').addEventListener('click', e => {
+$('ag-table').addEventListener('click', async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const v = state.visits.find(x => x.id === b.dataset.id); if (!v) return;
   if (b.dataset.act === 'edit') return openVisitModal({ visit: v });
   if (b.dataset.act === 'done') return openCompleteModal(v, 'realizada');
   if (b.dataset.act === 'noshow') return openCompleteModal(v, 'nao_compareceu');
+  if (b.dataset.act === 'feedback' || b.dataset.act === 'unfeedback') {
+    const toFeedback = b.dataset.act === 'feedback';
+    b.disabled = true;
+    try {
+      await api.updateVisit(v.id, { status: toFeedback ? 'aguardando_feedback' : 'agendada' });
+      toast(toFeedback ? 'Visita movida para Aguardando feedback.' : 'Visita voltou para Agendadas.');
+      await refresh();
+    } catch (err) { b.disabled = false; toast(errMsg(err)); }
+  }
 });
 
 function openCompleteModal(v, status) {
@@ -1090,7 +1108,7 @@ function renderDashboard() {
   const shown = vs.filter(v => v.status === 'realizada').length;
   const noShow = vs.filter(v => v.status === 'nao_compareceu').length;
   const concluded = shown + noShow;
-  const pending = vs.filter(v => v.status === 'agendada');
+  const pending = vs.filter(isOpen);
   const pres = pending.filter(v => v.modality === 'presencial');
   const rate = concluded ? Math.round(shown / concluded * 100) : null;
 
@@ -1202,7 +1220,7 @@ $('admin-products').addEventListener('click', e => {
 function openDeleteProductModal(p) {
   if (!p) return;
   const linked = state.visits.filter(v => v.product_id === p.id);
-  const pending = linked.filter(v => v.status === 'agendada').length;
+  const pending = linked.filter(isOpen).length;
   const body = linked.length
     ? `<p style="font-size:14px;margin-bottom:10px">Este produto tem <b>${linked.length} visita${linked.length === 1 ? '' : 's'}</b> registrada${linked.length === 1 ? '' : 's'}${pending ? ` (${pending} ainda agendada${pending === 1 ? '' : 's'})` : ''}.</p>
        <p style="font-size:13px;color:var(--text-secondary)"><b>Desativar</b> tira o produto da aba Produtos e mantém o histórico no dashboard.<br><b>Excluir tudo</b> apaga o produto e todas essas visitas. Não dá para desfazer.</p>`
