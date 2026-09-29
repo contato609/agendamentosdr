@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Moon — Visitas Garantidas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f3;
+    --bg-tertiary: #eeede8;
+    --text-primary: #1a1a18;
+    --text-secondary: #5f5e5a;
+    --text-tertiary: #888780;
+    --border: rgba(0,0,0,0.12);
+    --border-md: rgba(0,0,0,0.2);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --accent: #378ADD;
+    --green: #1D9E75;
+    --amber: #BA7517;
+    --red: #E24B4A;
+    --green-bg: #EAF3DE;
+    --green-text: #27500A;
+    --amber-bg: #FAEEDA;
+    --amber-text: #633806;
+    --red-bg: #FCEBEB;
+    --red-text: #791F1F;
+    --blue-bg: #E6F1FB;
+    --blue-text: #0C447C;
+    --series-1: #378ADD;
+    --series-2: #1D9E75;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #1e1e1c;
+      --bg-secondary: #2a2a28;
+      --bg-tertiary: #333331;
+      --text-primary: #f0efe8;
+      --text-secondary: #b4b2a9;
+      --text-tertiary: #888780;
+      --border: rgba(255,255,255,0.1);
+      --border-md: rgba(255,255,255,0.18);
+      --green-bg: #1f3316;
+      --green-text: #b5dd8f;
+      --amber-bg: #3a2a10;
+      --amber-text: #f2c98a;
+      --red-bg: #3d1a1a;
+      --red-text: #f3aaaa;
+      --blue-bg: #13283d;
+      --blue-text: #a9cdf2;
+    }
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  [hidden] { display: none !important; }
+
+  /* ── Login ───────────────────────────────────────────────────────────── */
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+  .login-card {
+    width: 100%; max-width: 380px;
+    background: var(--bg-primary); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 2rem 1.5rem;
+  }
+  .login-card h1 { font-size: 18px; font-weight: 500; margin: 12px 0 2px; }
+  .login-card p.sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 1.25rem; }
+  .link-btn { background: none; border: none; color: var(--accent); font-size: 12px; cursor: pointer; font-family: inherit; margin-top: 10px; }
+  .demo-note { font-size: 12px; color: var(--amber-text); background: var(--amber-bg); padding: 8px 10px; border-radius: var(--radius-md); margin-bottom: 1rem; }
+
+  /* ── Header ──────────────────────────────────────────────────────────── */
+  .app-header {
+    background: var(--bg-primary); border-bottom: 0.5px solid var(--border);
+    padding: 0 1.5rem; display: flex; align-items: center; gap: 12px;
+    min-height: 56px; position: sticky; top: 0; z-index: 100; flex-wrap: wrap;
+  }
+  .logo { font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .app-nav { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+  .nav-btn {
+    font-size: 13px; padding: 6px 14px; border-radius: var(--radius-md); border: none;
+    background: transparent; color: var(--text-secondary); cursor: pointer; font-family: inherit;
+    transition: background 0.15s, color 0.15s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .nav-btn:hover { background: var(--bg-secondary); }
+  .nav-btn.active { background: var(--blue-bg); color: var(--blue-text); font-weight: 500; }
+  .badge { font-size: 11px; background: var(--bg-tertiary); color: var(--text-secondary); padding: 0 7px; border-radius: 999px; }
+  .nav-btn.active .badge { background: var(--bg-primary); color: var(--blue-text); }
+  .user-box { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--blue-bg); color: var(--blue-text); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+
+  .container { max-width: 1040px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-title { font-size: 20px; font-weight: 500; margin-bottom: 2px; }
+  .page-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 1.25rem; }
+
+  .card { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 10px; flex-wrap: wrap; }
+  .card-title { font-size: 14px; font-weight: 500; }
+
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+  @media (max-width: 720px) {
+    .grid4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .app-header { padding: 8px 16px; }
+    .app-nav { margin-left: 0; width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+    .nav-btn { padding: 6px 10px; font-size: 12px; white-space: nowrap; }
+    .container { padding: 1.25rem 16px; }
+  }
+  @media (max-width: 480px) { .grid2 { grid-template-columns: 1fr; } }
+
+  /* ── Form ────────────────────────────────────────────────────────────── */
+  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  .field label { font-size: 12px; color: var(--text-secondary); }
+  input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="time"], select, textarea {
+    width: 100%; padding: 8px 10px; font-size: 14px;
+    border: 0.5px solid var(--border-md); border-radius: var(--radius-md);
+    background: var(--bg-secondary); color: var(--text-primary);
+    outline: none; font-family: inherit; transition: border-color 0.15s;
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(55,138,221,0.12); }
+  .seg { display: flex; gap: 6px; }
+  .seg label {
+    flex: 1; text-align: center; padding: 8px; border: 0.5px solid var(--border-md); border-radius: var(--radius-md);
+    cursor: pointer; font-size: 13px; color: var(--text-secondary); background: var(--bg-secondary);
+  }
+  .seg input { display: none; }
+  .seg input:checked + span { color: var(--blue-text); font-weight: 500; }
+  .seg label:has(input:checked) { background: var(--blue-bg); border-color: transparent; }
+
+  .btn-primary {
+    padding: 10px 16px; font-size: 14px; font-weight: 500; background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius-md); cursor: pointer; font-family: inherit; transition: opacity 0.15s;
+  }
+  .btn-primary.block { width: 100%; margin-top: 0.5rem; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary {
+    padding: 7px 14px; font-size: 13px; font-weight: 500; background: var(--bg-secondary); color: var(--text-primary);
+    border: 0.5px solid var(--border-md); border-radius: var(--radius-md); cursor: pointer; font-family: inherit;
+  }
+  .btn-secondary:hover { background: var(--bg-tertiary); }
+  .btn-sm { font-size: 12px; padding: 4px 10px; border-radius: var(--radius-md); cursor: pointer; font-family: inherit; border: 0.5px solid var(--border-md); background: transparent; color: var(--text-primary); white-space: nowrap; }
+  .btn-ok { color: var(--green-text); border-color: var(--green); }
+  .btn-ok:hover { background: var(--green-bg); }
+  .btn-no { color: var(--red-text); border-color: var(--red); }
+  .btn-no:hover { background: var(--red-bg); }
+
+  .alert { font-size: 13px; padding: 10px 14px; border-radius: var(--radius-md); margin-bottom: 1rem; }
+  .alert-error { background: var(--red-bg); color: var(--red-text); }
+  .alert-success { background: var(--green-bg); color: var(--green-text); }
+
+  /* ── Filters ─────────────────────────────────────────────────────────── */
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+  .filters select { width: auto; min-width: 170px; font-size: 13px; padding: 6px 10px; background: var(--bg-primary); }
+  .filters .spacer { flex: 1; }
+
+  /* ── Products ────────────────────────────────────────────────────────── */
+  .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .product-card {
+    background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg);
+    padding: 1.1rem; cursor: pointer; text-align: left; font-family: inherit; color: inherit;
+    transition: border-color 0.15s, transform 0.15s; position: relative; overflow: hidden;
+  }
+  .product-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .product-card .stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .product-card h3 { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
+  .product-card .loc { font-size: 12px; color: var(--text-secondary); }
+  .product-card .meta { font-size: 12px; color: var(--text-tertiary); margin-top: 12px; }
+
+  /* ── Calendar ────────────────────────────────────────────────────────── */
+  .cal-head { display: flex; align-items: center; gap: 8px; }
+  .cal-head .month { font-size: 15px; font-weight: 500; min-width: 160px; text-align: center; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 4px; }
+  .cal-dow { font-size: 11px; color: var(--text-tertiary); text-align: center; padding: 4px 0; text-transform: uppercase; }
+  .cal-day {
+    min-height: 84px; border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 6px;
+    background: var(--bg-primary); cursor: pointer; text-align: left; font-family: inherit; color: inherit;
+    display: flex; flex-direction: column; gap: 3px; transition: border-color 0.15s;
+  }
+  .cal-day:hover:not(:disabled) { border-color: var(--accent); }
+  .cal-day:disabled { cursor: default; opacity: 0.45; }
+  .cal-day.other { visibility: hidden; }
+  .cal-day.today .num { background: var(--accent); color: #fff; border-radius: 999px; padding: 0 7px; }
+  .cal-day .num { font-size: 12px; font-weight: 500; align-self: flex-start; }
+  .cal-ev { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--blue-bg); color: var(--blue-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cal-ev.realizada { background: var(--green-bg); color: var(--green-text); }
+  .cal-ev.nao_compareceu { background: var(--red-bg); color: var(--red-text); text-decoration: line-through; }
+  .cal-more { font-size: 11px; color: var(--text-tertiary); }
+  @media (max-width: 640px) {
+    .cal-day { min-height: 52px; padding: 4px; }
+    .cal-ev { font-size: 0; height: 6px; padding: 0; }
+    .cal-more { display: none; }
+  }
+
+  /* ── Tables ──────────────────────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; font-weight: 500; color: var(--text-secondary); padding: 8px 10px; border-bottom: 0.5px solid var(--border); white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 0.5px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg-secondary); }
+  td.actions { display: flex; gap: 6px; justify-content: flex-end; }
+  .pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+  .pill-presencial { background: var(--blue-bg); color: var(--blue-text); }
+  .pill-online { background: var(--bg-tertiary); color: var(--text-secondary); }
+  .pill-late { background: var(--amber-bg); color: var(--amber-text); }
+  .pill-ok { background: var(--green-bg); color: var(--green-text); }
+  .pill-no { background: var(--red-bg); color: var(--red-text); }
+  .muted { color: var(--text-tertiary); font-size: 12px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .empty { text-align: center; padding: 2.5rem 1rem; color: var(--text-tertiary); font-size: 14px; }
+
+  /* ── Dashboard ───────────────────────────────────────────────────────── */
+  .kpi { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; }
+  .kpi .lbl { font-size: 12px; color: var(--text-secondary); }
+  .kpi .val { font-size: 28px; font-weight: 500; line-height: 1.25; margin-top: 4px; }
+  .kpi .sub { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+  .chart-wrap { position: relative; width: 100%; height: 240px; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-secondary); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .bar-track { height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden; min-width: 60px; }
+  .bar-fill { height: 100%; background: var(--series-2); border-radius: 4px; }
+
+  /* ── Modal ───────────────────────────────────────────────────────────── */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
+  .modal { background: var(--bg-primary); border-radius: var(--radius-lg); width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; padding: 1.25rem 1.25rem 1rem; }
+  .modal h2 { font-size: 16px; font-weight: 500; margin-bottom: 2px; }
+  .modal .sub { font-size: 12px; color: var(--text-secondary); margin-bottom: 1rem; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text-primary); color: var(--bg-primary); padding: 10px 16px; border-radius: var(--radius-md); font-size: 13px; z-index: 300; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ LOGIN ══════════════════════ -->
+<div id="login-view" class="login-wrap" hidden>
+  <form class="login-card" id="login-form">
+    <div class="logo"><div class="logo-dot"></div>Digital Moon</div>
+    <h1>Visitas Garantidas</h1>
+    <p class="sub">Entre com o seu acesso de SDR.</p>
+    <div id="demo-note" class="demo-note" hidden>Modo demonstração: dados salvos só neste navegador. Use qualquer e-mail e senha.</div>
+    <div id="login-error" class="alert alert-error" hidden></div>
+    <div id="login-info" class="alert alert-success" hidden></div>
+    <div class="field"><label for="login-email">E-mail</label><input id="login-email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="login-pass">Senha</label><input id="login-pass" type="password" autocomplete="current-password" required></div>
+    <button class="btn-primary block" id="login-btn" type="submit">Entrar</button>
+    <button class="link-btn" type="button" id="forgot-btn">Esqueci minha senha</button>
+  </form>
+</div>
+
+<!-- ══════════════════════ APP ══════════════════════ -->
+<div id="app-view" hidden>
+  <header class="app-header">
+    <div class="logo"><div class="logo-dot"></div>Visitas Garantidas</div>
+    <nav class="app-nav" id="nav">
+      <button class="nav-btn active" data-tab="produtos">Produtos</button>
+      <button class="nav-btn" data-tab="agendadas">Visitas agendadas <span class="badge" id="badge-agendadas">0</span></button>
+      <button class="nav-btn" data-tab="realizadas">Visitas realizadas</button>
+      <button class="nav-btn" data-tab="dashboard">Dashboard</button>
+      <button class="nav-btn" data-tab="admin" id="nav-admin" hidden>Administração</button>
+    </nav>
+    <div class="user-box">
+      <div class="avatar" id="user-avatar">?</div>
+      <span id="user-name"></span>
+      <button class="btn-sm" id="logout-btn">Sair</button>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- ── Produtos ── -->
+    <section class="page active" id="page-produtos">
+      <div id="products-list">
+        <div class="page-title">Produtos</div>
+        <div class="page-sub">Escolha o empreendimento para abrir a agenda e marcar uma visita.</div>
+        <div class="products-grid" id="products-grid"></div>
+      </div>
+      <div id="product-calendar" hidden>
+        <button class="btn-sm" id="back-products">← Produtos</button>
+        <div class="page-title" style="margin-top:12px" id="cal-product-name"></div>
+        <div class="page-sub">Clique em um dia para criar o evento de visita.</div>
+        <div class="card">
+          <div class="card-header">
+            <div class="cal-head">
+              <button class="btn-sm" id="cal-prev" aria-label="Mês anterior">‹</button>
+              <div class="month" id="cal-month"></div>
+              <button class="btn-sm" id="cal-next" aria-label="Próximo mês">›</button>
+            </div>
+            <button class="btn-secondary" id="cal-today">Hoje</button>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Visitas agendadas ── -->
+    <section class="page" id="page-agendadas">
+      <div class="page-title">Visitas agendadas</div>
+      <div class="page-sub">Quando a visita acontecer, marque como realizada — ela passa para a aba Visitas realizadas.</div>
+      <div class="filters">
+        <select id="ag-f-product"></select>
+        <select id="ag-f-sdr"></select>
+      </div>
+      <div class="card"><div class="table-wrap" id="ag-table"></div></div>
+    </section>
+
+    <!-- ── Visitas realizadas ── -->
+    <section class="page" id="page-realizadas">
+      <div class="page-title">Visitas realizadas</div>
+      <div class="page-sub">Histórico de visitas concluídas com a observação de cada uma.</div>
+      <div class="filters">
+        <select id="re-f-product"></select>
+        <select id="re-f-sdr"></select>
+        <select id="re-f-status">
+          <option value="realizada">Compareceram</option>
+          <option value="nao_compareceu">Não compareceram</option>
+        </select>
+      </div>
+      <div class="card"><div class="table-wrap" id="re-table"></div></div>
+    </section>
+
+    <!-- ── Dashboard ── -->
+    <section class="page" id="page-dashboard">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub">Indicadores de agendamento e comparecimento.</div>
+      <div class="filters">
+        <select id="db-f-product"></select>
+        <select id="db-f-sdr"></select>
+        <select id="db-f-period">
+          <option value="all">Todo o período</option>
+          <option value="month">Este mês</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="90">Últimos 90 dias</option>
+        </select>
+      </div>
+      <div class="grid4" style="margin-bottom:1rem">
+        <div class="kpi"><div class="lbl">Total de visitas agendadas</div><div class="val" id="k-total">0</div><div class="sub">todas as visitas marcadas</div></div>
+        <div class="kpi"><div class="lbl">Visitas comparecidas</div><div class="val" id="k-show">0</div><div class="sub" id="k-show-sub"></div></div>
+        <div class="kpi"><div class="lbl">Taxa de show up</div><div class="val" id="k-rate">—</div><div class="sub" id="k-rate-sub"></div></div>
+        <div class="kpi"><div class="lbl">Agendadas presenciais</div><div class="val" id="k-pres">0</div><div class="sub" id="k-pres-sub"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Agendadas × comparecidas por semana</div>
+          <div class="legend"><span><i style="background:var(--series-1)"></i>Agendadas</span><span><i style="background:var(--series-2)"></i>Comparecidas</span></div>
+        </div>
+        <div class="chart-wrap"><canvas id="db-chart" role="img" aria-label="Visitas agendadas e comparecidas por semana"></canvas></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><div class="card-title" style="margin-bottom:.75rem">Por produto</div><div class="table-wrap" id="db-by-product"></div></div>
+        <div class="card"><div class="card-title" style="margin-bottom:.75rem">Por SDR responsável</div><div class="table-wrap" id="db-by-sdr"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:.75rem">Próximas visitas presenciais</div>
+        <div class="table-wrap" id="db-pres-list"></div>
+      </div>
+    </section>
+
+    <!-- ── Admin ── -->
+    <section class="page" id="page-admin">
+      <div class="page-title">Administração</div>
+      <div class="page-sub">Cadastre produtos e os acessos da equipe de SDRs.</div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Produtos</div><button class="btn-secondary" id="add-product-btn">+ Novo produto</button></div>
+          <div class="table-wrap" id="admin-products"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Equipe</div><button class="btn-secondary" id="add-user-btn">+ Novo acesso</button></div>
+          <div class="table-wrap" id="admin-users"></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div id="modal-root"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// Configuração
+// ══════════════════════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://pzwnvuypmwsgnoihkxzq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ANMsNc9CpyLAfaQAxh_v0Q_7ZX__vc0';
+// ?demo na URL roda tudo em localStorage, sem backend (útil para treinar a equipe).
+const DEMO = new URLSearchParams(location.search).has('demo');
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Camada de dados — Supabase
+// ══════════════════════════════════════════════════════════════════════════════
+function supabaseApi() {
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const must = ({ data, error }) => { if (error) throw error; return data; };
+  return {
+    async session() { const { data } = await sb.auth.getSession(); return data.session; },
+    onAuth(cb) { sb.auth.onAuthStateChange((e, s) => cb(s, e)); },
+    async updatePassword(password) { must(await sb.auth.updateUser({ password })); },
+    async signIn(email, password) { must(await sb.auth.signInWithPassword({ email, password })); },
+    async signOut() { await sb.auth.signOut(); },
+    async resetPassword(email) { must(await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href.split('#')[0] })); },
+    async profile(id) { return must(await sb.from('profiles').select('*').eq('id', id).single()); },
+    async profiles() { return must(await sb.from('profiles').select('*').order('full_name')); },
+    async products() { return must(await sb.from('products').select('*').order('name')); },
+    async visits() { return must(await sb.from('visits').select('*').order('scheduled_at')); },
+    async createVisit(v) { return must(await sb.from('visits').insert(v).select().single()); },
+    async updateVisit(id, patch) { return must(await sb.from('visits').update(patch).eq('id', id).select().single()); },
+    async deleteVisit(id) { must(await sb.from('visits').delete().eq('id', id)); },
+    async saveProduct(p) {
+      if (p.id) return must(await sb.from('products').update(p).eq('id', p.id).select().single());
+      return must(await sb.from('products').insert(p).select().single());
+    },
+    async updateProfile(id, patch) { return must(await sb.from('profiles').update(patch).eq('id', id).select().single()); },
+    // Criação de login: Edge Function `create-sdr` (usa a service role no servidor).
+    async createUser(u) {
+      const { data, error } = await sb.functions.invoke('create-sdr', { body: u });
+      if (error) throw new Error((data && data.error) || error.message);
+      if (data && data.error) throw new Error(data.error);
+      return data;
+    },
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Camada de dados — Demonstração (localStorage)
+// ══════════════════════════════════════════════════════════════════════════════
+function demoApi() {
+  const KEY = 'moon-visitas-demo';
+  const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };
+  const save = db => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} };
+  let db = load();
+  if (!db) {
+    const users = [
+      { id: 'u-admin', full_name: 'Gestor Moon', role: 'admin', active: true, email: 'gestor@digitalmoon.com' },
+      { id: 'u-ana', full_name: 'Ana Souza', role: 'sdr', active: true, email: 'ana@digitalmoon.com' },
+      { id: 'u-bruno', full_name: 'Bruno Lima', role: 'sdr', active: true, email: 'bruno@digitalmoon.com' },
+    ];
+    const products = [
+      { id: 'p1', name: 'Residencial Lua Nova', location: 'Zona Sul', color: '#378ADD', active: true },
+      { id: 'p2', name: 'Moon Tower', location: 'Centro', color: '#1D9E75', active: true },
+      { id: 'p3', name: 'Villa Crescente', location: 'Zona Oeste', color: '#BA7517', active: true },
+    ];
+    const names = ['Carla Mendes','Diego Rocha','Elaine Prado','Fábio Nunes','Gabriela Reis','Henrique Alves','Isabela Costa','João Pedro','Karina Dias','Lucas Martins','Mariana Lopes','Nicolas Faria','Olívia Ramos','Paulo Teixeira','Renata Gomes','Sérgio Pinto'];
+    const visits = [];
+    const now = new Date();
+    names.forEach((n, i) => {
+      const d = new Date(now); d.setDate(d.getDate() + (i - 11) * 2); d.setHours(9 + (i % 8), i % 2 ? 30 : 0, 0, 0);
+      const past = d < now;
+      const status = !past ? 'agendada' : (i % 4 === 0 ? 'nao_compareceu' : (i === 10 ? 'agendada' : 'realizada'));
+      visits.push({
+        id: uid(), product_id: products[i % 3].id, client_name: n, title: 'Visita ' + products[i % 3].name,
+        scheduled_at: d.toISOString(), modality: i % 3 === 1 ? 'online' : 'presencial',
+        notes: i % 2 ? 'Cliente interessado em unidade de 2 dormitórios.' : '',
+        sdr_id: i % 2 ? 'u-ana' : 'u-bruno', status,
+        completion_notes: status === 'realizada' ? 'Visitou o decorado, pediu simulação de financiamento.' : null,
+        completed_at: status !== 'agendada' ? d.toISOString() : null, created_by: 'u-admin', created_at: now.toISOString(),
+      });
+    });
+    db = { users, products, visits, session: null };
+    save(db);
+  }
+  let authCb = () => {};
+  const clone = x => JSON.parse(JSON.stringify(x));
+  return {
+    async session() { return db.session; },
+    onAuth(cb) { authCb = cb; },
+    async signIn(email) {
+      let u = db.users.find(x => x.email === email.toLowerCase());
+      if (!u) { u = { id: uid(), full_name: email.split('@')[0], role: 'admin', active: true, email: email.toLowerCase() }; db.users.push(u); }
+      db.session = { user: { id: u.id, email: u.email } }; save(db); authCb(db.session);
+    },
+    async signOut() { db.session = null; save(db); authCb(null); },
+    async resetPassword() {},
+    async profile(id) { return clone(db.users.find(u => u.id === id)); },
+    async profiles() { return clone(db.users).sort((a, b) => a.full_name.localeCompare(b.full_name)); },
+    async products() { return clone(db.products).sort((a, b) => a.name.localeCompare(b.name)); },
+    async visits() { return clone(db.visits).sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at)); },
+    async createVisit(v) { const r = { ...v, id: uid(), status: 'agendada', created_by: db.session.user.id, created_at: new Date().toISOString() }; db.visits.push(r); save(db); return clone(r); },
+    async updateVisit(id, patch) { const v = db.visits.find(x => x.id === id); Object.assign(v, patch); save(db); return clone(v); },
+    async deleteVisit(id) { db.visits = db.visits.filter(x => x.id !== id); save(db); },
+    async saveProduct(p) {
+      if (p.id) { const x = db.products.find(y => y.id === p.id); Object.assign(x, p); save(db); return clone(x); }
+      const r = { ...p, id: uid() }; db.products.push(r); save(db); return clone(r);
+    },
+    async updateProfile(id, patch) { const u = db.users.find(x => x.id === id); Object.assign(u, patch); save(db); return clone(u); },
+    async createUser(u) {
+      if (db.users.some(x => x.email === u.email.toLowerCase())) throw new Error('E-mail já cadastrado.');
+      const r = { id: uid(), full_name: u.full_name, role: u.role, active: true, email: u.email.toLowerCase() };
+      db.users.push(r); save(db); return clone(r);
+    },
+  };
+}
+
+const api = DEMO ? demoApi() : supabaseApi();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Estado e helpers
+// ══════════════════════════════════════════════════════════════════════════════
+const state = {
+  me: null, products: [], profiles: [], visits: [],
+  tab: 'produtos', calProduct: null, calMonth: startOfMonth(new Date()),
+};
+let chart = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const hm = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+const fmtDate = iso => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const fmtDateTime = iso => { const d = new Date(iso); return `${d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })} · ${hm(d)}`; };
+const productById = id => state.products.find(p => p.id === id);
+const profileById = id => state.profiles.find(p => p.id === id);
+const productName = id => productById(id)?.name ?? '—';
+const sdrName = id => profileById(id)?.full_name ?? '—';
+const isAdmin = () => state.me?.role === 'admin';
+const initials = n => (n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0].toUpperCase()).join('');
+
+function toast(msg) {
+  document.querySelectorAll('.toast').forEach(x => x.remove());
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
+}
+function errMsg(e) {
+  const m = e?.message || String(e);
+  if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
+  if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail antes de entrar.';
+  return m;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Autenticação
+// ══════════════════════════════════════════════════════════════════════════════
+async function boot() {
+  if (DEMO) $('demo-note').hidden = false;
+  api.onAuth((s, event) => {
+    if (!s) showLogin();
+    // Chegou pelo link de "Esqueci minha senha": pede a nova senha.
+    if (event === 'PASSWORD_RECOVERY') setTimeout(openNewPasswordModal, 0);
+  });
+  const s = await api.session();
+  if (s) await enterApp(s); else showLogin();
+}
+
+function showLogin() {
+  state.me = null;
+  $('app-view').hidden = true;
+  $('login-view').hidden = false;
+}
+
+async function enterApp(session) {
+  try {
+    state.me = await api.profile(session.user.id);
+  } catch (e) {
+    state.me = null;
+  }
+  if (!state.me || state.me.active === false) {
+    await api.signOut();
+    showLogin();
+    showLoginError(state.me ? 'Seu acesso está desativado. Fale com o gestor.' : 'Perfil não encontrado. Fale com o gestor.');
+    return;
+  }
+  $('login-view').hidden = true;
+  $('app-view').hidden = false;
+  $('user-name').textContent = state.me.full_name;
+  $('user-avatar').textContent = initials(state.me.full_name);
+  $('nav-admin').hidden = !isAdmin();
+  await refresh();
+}
+
+function showLoginError(msg) {
+  $('login-info').hidden = true;
+  $('login-error').textContent = msg; $('login-error').hidden = false;
+}
+
+$('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('login-btn'); btn.disabled = true; btn.textContent = 'Entrando…';
+  $('login-error').hidden = true;
+  try {
+    await api.signIn($('login-email').value.trim(), $('login-pass').value);
+    await enterApp(await api.session());
+  } catch (err) {
+    showLoginError(errMsg(err));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+});
+
+$('forgot-btn').addEventListener('click', async () => {
+  const email = $('login-email').value.trim();
+  if (!email) return showLoginError('Digite seu e-mail acima para receber o link de redefinição.');
+  try {
+    await api.resetPassword(email);
+    $('login-error').hidden = true;
+    $('login-info').textContent = 'Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha.';
+    $('login-info').hidden = false;
+  } catch (err) { showLoginError(errMsg(err)); }
+});
+
+function openNewPasswordModal() {
+  modal(`
+    <h2>Definir nova senha</h2><div class="sub">Escolha a senha que você usará para entrar.</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <div class="field"><label>Nova senha</label><input name="password" type="password" minlength="8" required autocomplete="new-password"></div>
+    <div class="modal-actions"><button class="btn-primary" type="submit">Salvar senha</button></div>`,
+  async fd => {
+    await api.updatePassword(fd.get('password'));
+    toast('Senha atualizada.');
+    await enterApp(await api.session());
+  });
+}
+
+$('logout-btn').addEventListener('click', async () => { await api.signOut(); showLogin(); });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Navegação
+// ══════════════════════════════════════════════════════════════════════════════
+$('nav').addEventListener('click', e => {
+  const b = e.target.closest('.nav-btn'); if (!b) return;
+  if (b.dataset.tab === 'produtos') state.calProduct = null;
+  switchTab(b.dataset.tab);
+});
+function switchTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + tab));
+  render();
+}
+
+async function refresh() {
+  try {
+    [state.products, state.profiles, state.visits] = await Promise.all([api.products(), api.profiles(), api.visits()]);
+  } catch (e) {
+    toast('Erro ao carregar dados: ' + errMsg(e));
+  }
+  fillFilters();
+  render();
+}
+
+function render() {
+  $('badge-agendadas').textContent = state.visits.filter(v => v.status === 'agendada').length;
+  ({ produtos: renderProducts, agendadas: renderAgendadas, realizadas: renderRealizadas, dashboard: renderDashboard, admin: renderAdmin })[state.tab]?.();
+}
+
+// ── Filtros compartilhados ────────────────────────────────────────────────────
+function fillFilters() {
+  const prodOpts = '<option value="">Todos os produtos</option>' + state.products.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  const sdrOpts = '<option value="">Todos os SDRs</option>' + state.profiles.map(p => `<option value="${esc(p.id)}">${esc(p.full_name)}</option>`).join('');
+  ['ag', 're', 'db'].forEach(k => {
+    const ps = $(`${k}-f-product`), ss = $(`${k}-f-sdr`);
+    const pv = ps.value, sv = ss.value;
+    ps.innerHTML = prodOpts; ss.innerHTML = sdrOpts;
+    ps.value = pv; ss.value = sv;
+  });
+}
+['ag-f-product', 'ag-f-sdr', 're-f-product', 're-f-sdr', 're-f-status', 'db-f-product', 'db-f-sdr', 'db-f-period']
+  .forEach(id => $(id).addEventListener('change', render));
+
+function filtered(prefix) {
+  const p = $(`${prefix}-f-product`).value, s = $(`${prefix}-f-sdr`).value;
+  return state.visits.filter(v => (!p || v.product_id === p) && (!s || v.sdr_id === s));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Aba Produtos + calendário
+// ══════════════════════════════════════════════════════════════════════════════
+function renderProducts() {
+  if (state.calProduct) return renderCalendar();
+  $('products-list').hidden = false; $('product-calendar').hidden = true;
+  const active = state.products.filter(p => p.active !== false);
+  if (!active.length) {
+    $('products-grid').innerHTML = `<div class="empty">Nenhum produto cadastrado.${isAdmin() ? ' Cadastre em Administração.' : ''}</div>`;
+    return;
+  }
+  $('products-grid').innerHTML = active.map(p => {
+    const pending = state.visits.filter(v => v.product_id === p.id && v.status === 'agendada').length;
+    return `<button class="product-card" data-id="${esc(p.id)}">
+      <span class="stripe" style="background:${esc(p.color || '#378ADD')}"></span>
+      <h3>${esc(p.name)}</h3>
+      <div class="loc">${esc(p.location || '')}</div>
+      <div class="meta">${pending} visita${pending === 1 ? '' : 's'} agendada${pending === 1 ? '' : 's'}</div>
+    </button>`;
+  }).join('');
+}
+$('products-grid').addEventListener('click', e => {
+  const c = e.target.closest('.product-card'); if (!c) return;
+  state.calProduct = c.dataset.id; state.calMonth = startOfMonth(new Date());
+  renderCalendar();
+});
+$('back-products').addEventListener('click', () => { state.calProduct = null; renderProducts(); });
+$('cal-prev').addEventListener('click', () => { state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth() - 1, 1); renderCalendar(); });
+$('cal-next').addEventListener('click', () => { state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth() + 1, 1); renderCalendar(); });
+$('cal-today').addEventListener('click', () => { state.calMonth = startOfMonth(new Date()); renderCalendar(); });
+
+function renderCalendar() {
+  const prod = productById(state.calProduct);
+  if (!prod) { state.calProduct = null; return renderProducts(); }
+  $('products-list').hidden = true; $('product-calendar').hidden = false;
+  $('cal-product-name').textContent = prod.name;
+  const m = state.calMonth;
+  const monthLabel = m.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  $('cal-month').textContent = monthLabel[0].toUpperCase() + monthLabel.slice(1);
+
+  const byDay = {};
+  state.visits.filter(v => v.product_id === prod.id).forEach(v => {
+    const k = ymd(new Date(v.scheduled_at)); (byDay[k] ||= []).push(v);
+  });
+  const todayKey = ymd(new Date());
+  const dows = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
+  for (let i = 0; i < m.getDay(); i++) html += '<div class="cal-day other"></div>';
+  const days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+  for (let d = 1; d <= days; d++) {
+    const date = new Date(m.getFullYear(), m.getMonth(), d);
+    const key = ymd(date);
+    const evs = (byDay[key] || []).sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
+    const past = key < todayKey;
+    html += `<button class="cal-day ${key === todayKey ? 'today' : ''}" data-date="${key}" ${past && !evs.length ? 'disabled' : ''}
+      title="${past ? 'Dia passado' : 'Agendar visita'}">
+      <span class="num">${d}</span>
+      ${evs.slice(0, 2).map(v => `<span class="cal-ev ${v.status}">${hm(new Date(v.scheduled_at))} ${esc(v.client_name)}</span>`).join('')}
+      ${evs.length > 2 ? `<span class="cal-more">+${evs.length - 2}</span>` : ''}
+    </button>`;
+  }
+  $('cal-grid').innerHTML = html;
+}
+$('cal-grid').addEventListener('click', e => {
+  const d = e.target.closest('.cal-day'); if (!d || d.disabled || !d.dataset.date) return;
+  const past = d.dataset.date < ymd(new Date());
+  if (past) return openDayModal(d.dataset.date);
+  openVisitModal({ product_id: state.calProduct, date: d.dataset.date });
+});
+
+// Lista das visitas de um dia passado (somente leitura).
+function openDayModal(date) {
+  const evs = state.visits.filter(v => v.product_id === state.calProduct && ymd(new Date(v.scheduled_at)) === date);
+  const st = { agendada: 'Agendada', realizada: 'Realizada', nao_compareceu: 'Não compareceu' };
+  modal(`<h2>${fmtDate(date + 'T12:00')}</h2><div class="sub">${esc(productName(state.calProduct))}</div>
+    <table>${evs.map(v => `<tr><td>${hm(new Date(v.scheduled_at))}</td><td>${esc(v.client_name)}</td><td>${st[v.status]}</td></tr>`).join('')}</table>
+    <div class="modal-actions"><button class="btn-secondary" data-close>Fechar</button></div>`);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Modal genérico
+// ══════════════════════════════════════════════════════════════════════════════
+function modal(html, onSubmit) {
+  const root = $('modal-root');
+  root.innerHTML = `<div class="modal-bg"><form class="modal" novalidate>${html}</form></div>`;
+  const bg = root.firstElementChild, form = bg.firstElementChild;
+  const close = () => { root.innerHTML = ''; document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  bg.addEventListener('mousedown', e => { if (e.target === bg) close(); });
+  form.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); close(); }));
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!onSubmit) return close();
+    if (!form.reportValidity()) return;
+    const btn = form.querySelector('[type=submit]'); if (btn) btn.disabled = true;
+    const err = form.querySelector('.modal-error');
+    try { await onSubmit(new FormData(form), form); close(); }
+    catch (ex) { if (err) { err.textContent = errMsg(ex); err.hidden = false; } }
+    finally { if (btn) btn.disabled = false; }
+  });
+  form.querySelector('input:not([type=hidden]), textarea, select')?.focus();
+  return form;
+}
+
+// ── Criar / editar visita ─────────────────────────────────────────────────────
+function openVisitModal({ product_id, date, visit }) {
+  const prod = productById(visit?.product_id ?? product_id);
+  const d = visit ? new Date(visit.scheduled_at) : null;
+  const sdrs = state.profiles.filter(p => p.active !== false);
+  const defaultSdr = visit?.sdr_id ?? state.me.id;
+  modal(`
+    <h2>${visit ? 'Editar visita' : 'Nova visita'}</h2>
+    <div class="sub">${esc(prod?.name ?? '')}</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <div class="field"><label>Nome do evento</label><input name="title" type="text" value="${esc(visit?.title ?? 'Visita — ' + (prod?.name ?? ''))}" required></div>
+    <div class="field"><label>Nome do cliente</label><input name="client_name" type="text" value="${esc(visit?.client_name ?? '')}" required placeholder="Quem vai visitar"></div>
+    <div class="grid2">
+      <div class="field"><label>Data</label><input name="date" type="date" value="${d ? ymd(d) : date}" min="${visit ? '' : ymd(new Date())}" required></div>
+      <div class="field"><label>Horário</label><input name="time" type="time" value="${d ? hm(d) : '10:00'}" required></div>
+    </div>
+    <div class="field"><label>Modalidade</label>
+      <div class="seg">
+        <label><input type="radio" name="modality" value="presencial" ${(visit?.modality ?? 'presencial') === 'presencial' ? 'checked' : ''}><span>Presencial</span></label>
+        <label><input type="radio" name="modality" value="online" ${visit?.modality === 'online' ? 'checked' : ''}><span>Online</span></label>
+      </div>
+    </div>
+    <div class="field"><label>SDR responsável</label>
+      <select name="sdr_id" required>${sdrs.map(p => `<option value="${esc(p.id)}" ${p.id === defaultSdr ? 'selected' : ''}>${esc(p.full_name)}</option>`).join('')}</select>
+    </div>
+    <div class="field"><label>Observação</label><textarea name="notes" placeholder="Informações importantes para a visita">${esc(visit?.notes ?? '')}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" data-close>Cancelar</button>
+      <button class="btn-primary" type="submit">${visit ? 'Salvar' : 'Agendar visita'}</button>
+    </div>`,
+  async fd => {
+    const payload = {
+      title: fd.get('title').trim(),
+      client_name: fd.get('client_name').trim(),
+      scheduled_at: new Date(`${fd.get('date')}T${fd.get('time')}`).toISOString(),
+      modality: fd.get('modality'),
+      sdr_id: fd.get('sdr_id'),
+      notes: fd.get('notes').trim() || null,
+    };
+    if (!visit && new Date(payload.scheduled_at) < new Date()) throw new Error('Escolha uma data e horário futuros.');
+    if (visit) await api.updateVisit(visit.id, payload);
+    else await api.createVisit({ ...payload, product_id: prod.id });
+    toast(visit ? 'Visita atualizada.' : 'Visita agendada! Ela já aparece em Visitas agendadas.');
+    await refresh();
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Aba Visitas agendadas
+// ══════════════════════════════════════════════════════════════════════════════
+function renderAgendadas() {
+  const rows = filtered('ag').filter(v => v.status === 'agendada');
+  if (!rows.length) { $('ag-table').innerHTML = '<div class="empty">Nenhuma visita agendada. Vá em Produtos para marcar uma.</div>'; return; }
+  const now = new Date();
+  $('ag-table').innerHTML = `<table>
+    <thead><tr><th>Data da visita</th><th>Cliente</th><th>Produto</th><th>Modalidade</th><th>SDR responsável</th><th></th></tr></thead>
+    <tbody>${rows.map(v => {
+      const late = new Date(v.scheduled_at) < now;
+      const p = productById(v.product_id);
+      return `<tr>
+        <td>${fmtDateTime(v.scheduled_at)} ${late ? '<span class="pill pill-late">aguardando baixa</span>' : ''}</td>
+        <td>${esc(v.client_name)}${v.notes ? `<div class="muted">${esc(v.notes)}</div>` : ''}</td>
+        <td><span class="dot" style="background:${esc(p?.color || '#888')}"></span>${esc(productName(v.product_id))}</td>
+        <td><span class="pill pill-${v.modality}">${v.modality === 'presencial' ? 'Presencial' : 'Online'}</span></td>
+        <td>${esc(sdrName(v.sdr_id))}</td>
+        <td class="actions">
+          <button class="btn-sm btn-ok" data-act="done" data-id="${esc(v.id)}">✓ Realizada</button>
+          <button class="btn-sm btn-no" data-act="noshow" data-id="${esc(v.id)}">Não compareceu</button>
+          <button class="btn-sm" data-act="edit" data-id="${esc(v.id)}">Editar</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+$('ag-table').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const v = state.visits.find(x => x.id === b.dataset.id); if (!v) return;
+  if (b.dataset.act === 'edit') return openVisitModal({ visit: v });
+  if (b.dataset.act === 'done') return openCompleteModal(v, 'realizada');
+  if (b.dataset.act === 'noshow') return openCompleteModal(v, 'nao_compareceu');
+});
+
+function openCompleteModal(v, status) {
+  const done = status === 'realizada';
+  modal(`
+    <h2>${done ? 'Marcar como realizada' : 'Cliente não compareceu'}</h2>
+    <div class="sub">${esc(v.client_name)} · ${esc(productName(v.product_id))} · ${fmtDateTime(v.scheduled_at)}</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <div class="field"><label>Observação da visita${done ? '' : ' (opcional)'}</label>
+      <textarea name="completion_notes" ${done ? 'required' : ''} placeholder="${done ? 'Como foi a visita? Interesse, objeções, próximos passos…' : 'Motivo, reagendamento…'}"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" data-close>Cancelar</button>
+      <button class="btn-primary" type="submit">Confirmar</button>
+    </div>`,
+  async fd => {
+    await api.updateVisit(v.id, { status, completion_notes: fd.get('completion_notes').trim() || null, completed_at: new Date().toISOString() });
+    toast(done ? 'Visita movida para Visitas realizadas.' : 'Visita registrada como não comparecida.');
+    await refresh();
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Aba Visitas realizadas
+// ══════════════════════════════════════════════════════════════════════════════
+function renderRealizadas() {
+  const status = $('re-f-status').value;
+  const rows = filtered('re').filter(v => v.status === status).sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at));
+  if (!rows.length) { $('re-table').innerHTML = '<div class="empty">Nenhuma visita aqui ainda.</div>'; return; }
+  $('re-table').innerHTML = `<table>
+    <thead><tr><th>Data da visita</th><th>Cliente</th><th>Observação</th><th>Produto</th><th>SDR</th><th></th></tr></thead>
+    <tbody>${rows.map(v => `<tr>
+      <td style="white-space:nowrap">${fmtDate(v.scheduled_at)}</td>
+      <td>${esc(v.client_name)}</td>
+      <td>${esc(v.completion_notes || '—')}</td>
+      <td class="muted">${esc(productName(v.product_id))}</td>
+      <td class="muted">${esc(sdrName(v.sdr_id))}</td>
+      <td class="actions"><button class="btn-sm" data-undo="${esc(v.id)}" title="Voltar para agendadas">Desfazer</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+$('re-table').addEventListener('click', async e => {
+  const b = e.target.closest('[data-undo]'); if (!b) return;
+  if (!confirm('Voltar esta visita para Visitas agendadas?')) return;
+  try {
+    await api.updateVisit(b.dataset.undo, { status: 'agendada', completion_notes: null, completed_at: null });
+    await refresh();
+  } catch (err) { toast(errMsg(err)); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Dashboard
+// ══════════════════════════════════════════════════════════════════════════════
+function renderDashboard() {
+  const period = $('db-f-period').value;
+  const now = new Date();
+  let from = null;
+  if (period === 'month') from = startOfMonth(now);
+  else if (period !== 'all') { from = new Date(now); from.setDate(from.getDate() - Number(period)); from.setHours(0, 0, 0, 0); }
+  const vs = filtered('db').filter(v => !from || new Date(v.scheduled_at) >= from);
+
+  const total = vs.length;
+  const shown = vs.filter(v => v.status === 'realizada').length;
+  const noShow = vs.filter(v => v.status === 'nao_compareceu').length;
+  const concluded = shown + noShow;
+  const pending = vs.filter(v => v.status === 'agendada');
+  const pres = pending.filter(v => v.modality === 'presencial');
+  const rate = concluded ? Math.round(shown / concluded * 100) : null;
+
+  $('k-total').textContent = total;
+  $('k-show').textContent = shown;
+  $('k-show-sub').textContent = `${noShow} não compareceram`;
+  $('k-rate').textContent = rate === null ? '—' : rate + '%';
+  $('k-rate-sub').textContent = concluded ? `${shown} de ${concluded} visitas concluídas` : 'sem visitas concluídas';
+  $('k-pres').textContent = pres.length;
+  $('k-pres-sub').textContent = `de ${pending.length} ainda agendadas`;
+
+  const group = (key, label) => {
+    const m = {};
+    vs.forEach(v => { const g = (m[v[key]] ||= { total: 0, shown: 0, concl: 0, pres: 0 }); g.total++; if (v.status === 'realizada') g.shown++; if (v.status !== 'agendada') g.concl++; if (v.status === 'agendada' && v.modality === 'presencial') g.pres++; });
+    const rows = Object.entries(m).sort((a, b) => b[1].total - a[1].total);
+    if (!rows.length) return '<div class="empty">Sem dados para o filtro.</div>';
+    return `<table><thead><tr><th>${label}</th><th>Agend.</th><th>Compar.</th><th>Show up</th><th>Presenc.</th></tr></thead><tbody>${rows.map(([id, g]) => {
+      const r = g.concl ? Math.round(g.shown / g.concl * 100) : null;
+      return `<tr><td>${esc(key === 'product_id' ? productName(id) : sdrName(id))}</td><td>${g.total}</td><td>${g.shown}</td>
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="bar-track" style="flex:1"><div class="bar-fill" style="width:${r ?? 0}%"></div></div><span>${r === null ? '—' : r + '%'}</span></div></td><td>${g.pres}</td></tr>`;
+    }).join('')}</tbody></table>`;
+  };
+  $('db-by-product').innerHTML = group('product_id', 'Produto');
+  $('db-by-sdr').innerHTML = group('sdr_id', 'SDR');
+
+  const next = pres.filter(v => new Date(v.scheduled_at) >= now).slice(0, 8);
+  $('db-pres-list').innerHTML = next.length ? `<table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>SDR</th></tr></thead><tbody>${next.map(v => `<tr>
+    <td>${fmtDateTime(v.scheduled_at)}</td><td>${esc(v.client_name)}</td><td>${esc(productName(v.product_id))}</td><td>${esc(sdrName(v.sdr_id))}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">Nenhuma visita presencial futura.</div>';
+
+  renderWeeklyChart(vs);
+}
+
+function weekStart(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+
+function renderWeeklyChart(vs) {
+  if (typeof Chart === 'undefined') return; // CDN indisponível: o restante do dashboard segue funcionando
+  const weeks = {};
+  vs.forEach(v => {
+    const k = ymd(weekStart(new Date(v.scheduled_at)));
+    const w = (weeks[k] ||= { ag: 0, sh: 0 }); w.ag++; if (v.status === 'realizada') w.sh++;
+  });
+  const keys = Object.keys(weeks).sort().slice(-12);
+  const labels = keys.map(k => 'Sem. ' + new Date(k + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+  const css = getComputedStyle(document.documentElement);
+  const c1 = css.getPropertyValue('--series-1').trim(), c2 = css.getPropertyValue('--series-2').trim();
+  const ink = css.getPropertyValue('--text-secondary').trim(), grid = css.getPropertyValue('--border').trim();
+  if (chart) chart.destroy();
+  chart = new Chart($('db-chart'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Agendadas', data: keys.map(k => weeks[k].ag), backgroundColor: c1, borderRadius: 4, maxBarThickness: 22 },
+      { label: 'Comparecidas', data: keys.map(k => weeks[k].sh), backgroundColor: c2, borderRadius: 4, maxBarThickness: 22 },
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      datasets: { bar: { categoryPercentage: 0.7, barPercentage: 0.9 } },
+      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: ink, font: { size: 11 } } },
+        y: { beginAtZero: true, ticks: { precision: 0, color: ink, font: { size: 11 } }, grid: { color: grid }, border: { display: false } },
+      },
+    },
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Administração (somente admin)
+// ══════════════════════════════════════════════════════════════════════════════
+function renderAdmin() {
+  if (!isAdmin()) return switchTab('produtos');
+  $('admin-products').innerHTML = state.products.length ? `<table><tbody>${state.products.map(p => `<tr>
+    <td><span class="dot" style="background:${esc(p.color)}"></span>${esc(p.name)}<div class="muted">${esc(p.location || '')}</div></td>
+    <td>${p.active !== false ? '<span class="pill pill-ok">Ativo</span>' : '<span class="pill pill-no">Inativo</span>'}</td>
+    <td class="actions"><button class="btn-sm" data-edit-product="${esc(p.id)}">Editar</button></td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">Nenhum produto.</div>';
+  $('admin-users').innerHTML = `<table><tbody>${state.profiles.map(u => `<tr>
+    <td>${esc(u.full_name)}<div class="muted">${u.role === 'admin' ? 'Gestor' : 'SDR'}</div></td>
+    <td>${u.active !== false ? '<span class="pill pill-ok">Ativo</span>' : '<span class="pill pill-no">Inativo</span>'}</td>
+    <td class="actions"><button class="btn-sm" data-edit-user="${esc(u.id)}">Editar</button></td></tr>`).join('')}</tbody></table>`;
+}
+
+$('add-product-btn').addEventListener('click', () => openProductModal());
+$('admin-products').addEventListener('click', e => { const b = e.target.closest('[data-edit-product]'); if (b) openProductModal(productById(b.dataset.editProduct)); });
+function openProductModal(p) {
+  modal(`
+    <h2>${p ? 'Editar produto' : 'Novo produto'}</h2><div class="sub">Empreendimento disponível para agendamento.</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <div class="field"><label>Nome</label><input name="name" type="text" value="${esc(p?.name ?? '')}" required></div>
+    <div class="field"><label>Localização</label><input name="location" type="text" value="${esc(p?.location ?? '')}"></div>
+    <div class="grid2">
+      <div class="field"><label>Cor</label><input name="color" type="color" value="${esc(p?.color ?? '#378ADD')}" style="height:38px;width:100%"></div>
+      <div class="field"><label>Status</label><select name="active"><option value="1">Ativo</option><option value="0" ${p?.active === false ? 'selected' : ''}>Inativo</option></select></div>
+    </div>
+    <div class="modal-actions"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-primary" type="submit">Salvar</button></div>`,
+  async fd => {
+    await api.saveProduct({ ...(p ? { id: p.id } : {}), name: fd.get('name').trim(), location: fd.get('location').trim() || null, color: fd.get('color'), active: fd.get('active') === '1' });
+    toast('Produto salvo.'); await refresh();
+  });
+}
+
+$('add-user-btn').addEventListener('click', () => {
+  modal(`
+    <h2>Novo acesso</h2><div class="sub">Cria o login do SDR. A pessoa entra com este e-mail e a senha provisória.</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <div class="field"><label>Nome completo</label><input name="full_name" type="text" required></div>
+    <div class="field"><label>E-mail</label><input name="email" type="email" required></div>
+    <div class="field"><label>Senha provisória</label><input name="password" type="text" minlength="8" required placeholder="mínimo 8 caracteres"></div>
+    <div class="field"><label>Perfil</label><select name="role"><option value="sdr">SDR</option><option value="admin">Gestor (admin)</option></select></div>
+    <div class="modal-actions"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-primary" type="submit">Criar acesso</button></div>`,
+  async fd => {
+    await api.createUser({ full_name: fd.get('full_name').trim(), email: fd.get('email').trim(), password: fd.get('password'), role: fd.get('role') });
+    toast('Acesso criado.'); await refresh();
+  });
+});
+$('admin-users').addEventListener('click', e => {
+  const b = e.target.closest('[data-edit-user]'); if (!b) return;
+  const u = profileById(b.dataset.editUser);
+  modal(`
+    <h2>Editar acesso</h2><div class="sub">${esc(u.email || '')}</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <div class="field"><label>Nome completo</label><input name="full_name" type="text" value="${esc(u.full_name)}" required></div>
+    <div class="grid2">
+      <div class="field"><label>Perfil</label><select name="role"><option value="sdr">SDR</option><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Gestor (admin)</option></select></div>
+      <div class="field"><label>Status</label><select name="active"><option value="1">Ativo</option><option value="0" ${u.active === false ? 'selected' : ''}>Inativo</option></select></div>
+    </div>
+    <div class="modal-actions"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-primary" type="submit">Salvar</button></div>`,
+  async fd => {
+    if (u.id === state.me.id && (fd.get('role') !== 'admin' || fd.get('active') !== '1')) throw new Error('Você não pode remover seu próprio acesso de gestor.');
+    await api.updateProfile(u.id, { full_name: fd.get('full_name').trim(), role: fd.get('role'), active: fd.get('active') === '1' });
+    toast('Acesso atualizado.'); await refresh();
+  });
+});
+
+boot();
+</script>
+</body>
+</html>
