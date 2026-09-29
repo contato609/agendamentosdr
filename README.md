@@ -1,7 +1,7 @@
 # Visitas Garantidas — Digital Moon
 
 Sistema de agendamento e acompanhamento de visitas aos empreendimentos, com login por SDR.
-Endereço: **https://contato609.github.io/agendamentosdr/** (GitHub Pages).
+Endereço: **https://agendamentosdr.sistemadevisitas.com/** (GitHub Pages).
 A interface é o `index.html` (página única, sem build), com o Supabase como backend.
 
 ## Fluxo
@@ -46,5 +46,5 @@ na conta, para a taxa não cair só porque a visita ainda não aconteceu.
 
 ## Modo demonstração
 
-Abra https://contato609.github.io/agendamentosdr/?demo para usar sem backend (dados de exemplo salvos no navegador, qualquer e-mail/senha).
+Abra https://agendamentosdr.sistemadevisitas.com/?demo para usar sem backend (dados de exemplo salvos no navegador, qualquer e-mail/senha).
 Útil para treinar a equipe antes de ligar o banco.
