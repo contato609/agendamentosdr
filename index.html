@@ -348,6 +348,52 @@
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 
   .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--night); color: var(--night-ink); border: 1px solid rgba(212,175,53,.35); padding: 11px 18px; border-radius: 12px; font-size: 13px; z-index: 300; box-shadow: 0 10px 30px rgba(0,0,0,.25); max-width: calc(100vw - 32px); }
+  /* ── Portal do cliente (somente leitura) ───────────────────────────── */
+  .pt-top { background: var(--night); color: var(--night-ink); border-bottom: 1px solid rgba(212,175,53,.14); }
+  .pt-in { max-width: 1120px; margin: 0 auto; padding: 14px 24px 0; }
+  .pt-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .pt-who { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--night-ink-2); }
+  .pt-who b { color: var(--night-ink); font-weight: 600; }
+  .pt-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 22px; }
+  .pt-eyebrow { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); }
+  .pt-head h1 { margin: 2px 0 0; font-size: 30px; font-weight: 800; letter-spacing: -0.03em; }
+  .pt-head .loc { color: var(--night-ink-2); font-size: 13.5px; }
+  .pt-head select { width: auto; min-width: 200px; background: rgba(255,255,255,.06); color: var(--night-ink); border-color: rgba(255,255,255,.14); }
+  .pt-head select option { color: #1a1a1a; }
+  .pt-tabs { display: flex; gap: 4px; margin-top: 18px; overflow-x: auto; }
+  .pt-tab { border: 0; background: transparent; color: var(--night-ink-2); font-size: 13.5px; font-weight: 500; padding: 10px 14px; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; font-family: inherit; }
+  .pt-tab:hover { color: var(--night-ink); }
+  .pt-tab.on { color: var(--gold); border-bottom-color: var(--gold); }
+  .pt-wrap { max-width: 1120px; margin: 0 auto; padding: 24px 24px 56px; }
+  .pt-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; font-size: 12.5px; color: var(--text-tertiary); }
+  .pt-seg { display: inline-flex; background: var(--bg-primary); border: 1px solid var(--border-md); border-radius: 999px; padding: 3px; }
+  .pt-seg button { border: 0; background: transparent; color: var(--text-secondary); font-size: 12.5px; font-weight: 500; padding: 5px 12px; border-radius: 999px; cursor: pointer; font-family: inherit; }
+  .pt-seg button.on { background: var(--night); color: var(--gold); }
+  .pt-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .pt-two { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; }
+  @media (max-width: 980px) { .pt-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pt-kpis .kpi.hero { grid-column: 1 / -1; } .pt-two { grid-template-columns: 1fr; } }
+  .funnel { display: grid; gap: 12px; }
+  .f-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) 48px; align-items: center; gap: 12px; font-size: 13px; }
+  .f-row .bar { height: 26px; background: var(--bg-tertiary); border-radius: 7px; overflow: hidden; }
+  .f-row .bar i { display: block; height: 100%; border-radius: 7px; background: var(--gold); }
+  .f-row:first-child .bar i { background: var(--series-1); }
+  .f-row .v { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .f-rate { font-size: 12px; color: var(--text-tertiary); padding-left: 122px; margin-top: -4px; }
+  .pt-item { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid var(--border); }
+  .pt-item:first-child { border-top: 0; padding-top: 0; }
+  .pt-date { text-align: center; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 5px 0; line-height: 1.1; }
+  .pt-date b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .pt-date span { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-tertiary); }
+  .pt-item .t { font-weight: 600; font-size: 13.5px; }
+  .pt-item .s { font-size: 12.5px; color: var(--text-tertiary); }
+  .cal-day.ro { cursor: default; }
+  .cal-day.ro:hover { border-color: var(--border); background: var(--bg-primary); }
+  .cal-day.ro.today:hover { border-color: rgba(212,175,53,.55); }
+  .prod-checks { display: grid; gap: 6px; }
+  .prod-checks label { display: flex; gap: 8px; align-items: center; font-size: 13.5px; color: var(--text-primary); padding: 8px 10px; border: 1px solid var(--border-md); border-radius: 10px; background: var(--bg-secondary); cursor: pointer; }
+  .prod-checks label:has(input:checked) { border-color: var(--gold); background: var(--blue-bg); }
+  .prod-checks input { accent-color: var(--gold); }
+  @media (max-width: 640px) { .pt-in, .pt-wrap { padding-left: 16px; padding-right: 16px; } .pt-who .nm { display: none; } .f-row { grid-template-columns: 92px minmax(0,1fr) 36px; } .f-rate { padding-left: 0; } }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -363,7 +409,7 @@
   </div>
   <form class="login-card" id="login-form">
     <h1>Entrar</h1>
-    <p class="sub">Use o acesso criado pelo seu gestor.</p>
+    <p class="sub">Equipe Digital Moon ou responsável pelo empreendimento: use o acesso que você recebeu.</p>
     <div id="demo-note" class="demo-note" hidden>Modo demonstração: dados salvos só neste navegador. Use qualquer e-mail e senha.</div>
     <div id="login-error" class="alert alert-error" hidden></div>
     <div id="login-info" class="alert alert-success" hidden></div>
@@ -500,7 +546,7 @@
     <!-- ── Admin ── -->
     <section class="page" id="page-admin">
       <div class="page-title">Administração</div>
-      <div class="page-sub">Cadastre produtos e os acessos da equipe de SDRs.</div>
+      <div class="page-sub">Cadastre produtos, a equipe de SDRs e os acessos dos clientes.</div>
       <div class="grid2">
         <div class="card">
           <div class="card-header"><div class="card-title">Produtos</div><button class="btn-secondary" id="add-product-btn">+ Novo produto</button></div>
@@ -511,9 +557,73 @@
           <div class="table-wrap" id="admin-users"></div>
         </div>
       </div>
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Clientes (Portal do Incorporador)</div><div class="muted">O cliente vê só os empreendimentos liberados, sem saber qual SDR agendou.</div></div>
+          <button class="btn-secondary" id="add-client-btn">+ Novo acesso de cliente</button>
+        </div>
+        <div class="table-wrap" id="admin-clients"></div>
+      </div>
     </section>
 
   </div>
+</div>
+
+<!-- ══════════════════════ PORTAL DO CLIENTE ══════════════════════ -->
+<div id="portal-view" hidden>
+  <header class="pt-top">
+    <div class="pt-in">
+      <div class="pt-row">
+        <div class="logo"><svg class="logo-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M20.5 3.2A13 13 0 1 0 28.8 22 10.5 10.5 0 1 1 20.5 3.2Z" fill="#d4af35"/><rect x="13" y="15" width="2.6" height="9" rx=".6" fill="#d4af35" opacity=".85"/><rect x="16.8" y="11.5" width="2.6" height="12.5" rx=".6" fill="#d4af35"/><rect x="20.6" y="17" width="2.6" height="7" rx=".6" fill="#d4af35" opacity=".7"/></svg><span class="brand">Digital Moon</span><span class="sep"></span><span class="product">Portal do Incorporador</span></div>
+        <div class="pt-who"><div class="avatar" id="pt-avatar">?</div><span class="nm"><b id="pt-name"></b> · <span id="pt-company"></span></span><button class="btn-sm" id="pt-logout" style="color:var(--night-ink);border-color:rgba(255,255,255,.18)">Sair</button></div>
+      </div>
+      <div class="pt-head">
+        <div><div class="pt-eyebrow">Seu empreendimento</div><h1 id="pt-prod">—</h1><div class="loc" id="pt-loc"></div></div>
+        <div class="field" style="margin:0" id="pt-select-wrap" hidden><label for="pt-select" style="color:var(--night-ink-2)">Empreendimento</label><select id="pt-select"></select></div>
+      </div>
+      <nav class="pt-tabs" id="pt-tabs">
+        <button class="pt-tab on" data-tab="geral">Visão geral</button>
+        <button class="pt-tab" data-tab="agenda">Agenda</button>
+        <button class="pt-tab" data-tab="realizadas">Visitas realizadas</button>
+      </nav>
+    </div>
+  </header>
+  <main class="pt-wrap">
+    <div id="pt-empty" class="card empty" hidden>Nenhum empreendimento liberado para o seu acesso ainda. Fale com a Digital Moon.</div>
+    <div class="pt-toolbar" id="pt-toolbar">
+      <div class="pt-seg" id="pt-period"><button data-p="7">7 dias</button><button class="on" data-p="30">30 dias</button><button data-p="90">90 dias</button></div>
+      <span id="pt-period-note"></span>
+    </div>
+    <div id="pt-geral">
+      <div class="pt-kpis">
+        <div class="kpi"><div class="lbl">Visitas agendadas</div><div class="val" id="pk-ag">0</div><div class="sub" id="pk-ag-s"></div></div>
+        <div class="kpi"><div class="lbl">Compareceram</div><div class="val" id="pk-co">0</div><div class="sub" id="pk-co-s"></div></div>
+        <div class="kpi"><div class="lbl">Taxa de show up</div><div class="val" id="pk-sh">—</div><div class="sub">das visitas já concluídas</div></div>
+        <div class="kpi"><div class="lbl">Vendas</div><div class="val" id="pk-ve">0</div><div class="sub" id="pk-ve-s"></div></div>
+        <div class="kpi hero"><div class="lbl">VGV gerado</div><div class="val money" id="pk-vgv">R$ 0</div><div class="sub" id="pk-vgv-s"></div></div>
+      </div>
+      <div class="pt-two">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Agendadas × compareceram por semana</div>
+            <div class="legend"><span><i style="background:var(--series-1)"></i>Agendadas</span><span><i style="background:var(--series-2)"></i>Compareceram</span></div></div>
+          <div class="chart-wrap" style="height:230px"><canvas id="pt-chart" role="img" aria-label="Visitas agendadas e comparecidas por semana"></canvas></div>
+        </div>
+        <div class="card"><div class="card-header"><div class="card-title">Funil do período</div><span class="muted">visita → venda</span></div><div class="funnel" id="pt-funnel"></div></div>
+      </div>
+      <div class="card"><div class="card-header"><div class="card-title">Próximas visitas</div><span class="muted" id="pt-next-note"></span></div><div id="pt-next"></div></div>
+    </div>
+    <div id="pt-agenda" hidden>
+      <div class="card">
+        <div class="card-header"><div class="cal-head"><button class="btn-sm" id="pt-prev" aria-label="Mês anterior">‹</button><div class="month" id="pt-month"></div><button class="btn-sm" id="pt-next-m" aria-label="Próximo mês">›</button></div></div>
+        <div class="cal-grid" id="pt-cal"></div>
+      </div>
+    </div>
+    <div id="pt-realizadas" hidden>
+      <div class="card"><div class="card-header"><div class="card-title">Visitas concluídas</div><span class="muted">o que aconteceu em cada visita</span></div>
+        <div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Modalidade</th><th>Compareceu</th><th>Resultado</th><th>VGV</th><th>Observação</th></tr></thead><tbody id="pt-done"></tbody></table></div>
+      </div>
+    </div>
+  </main>
 </div>
 
 <div id="modal-root"></div>
@@ -557,6 +667,13 @@ function supabaseApi() {
       must(await sb.from('products').delete().eq('id', id));
     },
     async updateProfile(id, patch) { return must(await sb.from('profiles').update(patch).eq('id', id).select().single()); },
+    async clientProducts() { return must(await sb.from('client_products').select('*')); },
+    async setClientProducts(clientId, productIds) {
+      must(await sb.from('client_products').delete().eq('client_id', clientId));
+      if (productIds.length) must(await sb.from('client_products').insert(productIds.map(product_id => ({ client_id: clientId, product_id }))));
+    },
+    // Visitas do cliente: função do banco que já devolve os dados sem SDR.
+    async clientVisits() { return must(await sb.rpc('client_visits')); },
     // Criação de login: Edge Function `create-sdr` (usa a service role no servidor).
     async createUser(u) {
       const { data, error } = await sb.functions.invoke('create-sdr', { body: u });
@@ -571,7 +688,7 @@ function supabaseApi() {
 // Camada de dados — Demonstração (localStorage)
 // ══════════════════════════════════════════════════════════════════════════════
 function demoApi() {
-  const KEY = 'moon-visitas-demo-v2';
+  const KEY = 'moon-visitas-demo-v3';
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };
   const save = db => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} };
@@ -581,6 +698,7 @@ function demoApi() {
       { id: 'u-admin', full_name: 'Gestor Moon', role: 'admin', active: true, email: 'gestor@digitalmoon.com' },
       { id: 'u-ana', full_name: 'Ana Souza', role: 'sdr', active: true, email: 'ana@digitalmoon.com' },
       { id: 'u-bruno', full_name: 'Bruno Lima', role: 'sdr', active: true, email: 'bruno@digitalmoon.com' },
+      { id: 'u-carlos', full_name: 'Carlos Andrade', role: 'cliente', company: 'Greenview Incorporadora', active: true, email: 'carlos@greenview.com.br' },
     ];
     const products = [
       { id: 'p1', name: 'Residencial Lua Nova', location: 'Zona Sul', color: '#378ADD', active: true },
@@ -606,7 +724,7 @@ function demoApi() {
         sale_notes: status === 'realizada' && i % 3 === 1 ? 'Achou o valor da entrada alto.' : null,
       });
     });
-    db = { users, products, visits, session: null };
+    db = { users, products, visits, clientProducts: [{ client_id: 'u-carlos', product_id: 'p1' }], session: null };
     save(db);
   }
   let authCb = () => {};
@@ -627,7 +745,29 @@ function demoApi() {
       const list = me?.role === 'admin' ? db.users : db.users.filter(u => u.id === me?.id);
       return clone(list).sort((a, b) => a.full_name.localeCompare(b.full_name));
     },
-    async products() { return clone(db.products).sort((a, b) => a.name.localeCompare(b.name)); },
+    async products() {
+      const me = db.users.find(u => u.id === db.session?.user.id);
+      const allowed = db.clientProducts.filter(c => c.client_id === me?.id).map(c => c.product_id);
+      const list = me?.role === 'cliente' ? db.products.filter(p => allowed.includes(p.id)) : db.products;
+      return clone(list).sort((a, b) => a.name.localeCompare(b.name));
+    },
+    async clientProducts() {
+      const me = db.users.find(u => u.id === db.session?.user.id);
+      return clone(me?.role === 'admin' ? db.clientProducts : db.clientProducts.filter(c => c.client_id === me?.id));
+    },
+    async setClientProducts(clientId, ids) {
+      db.clientProducts = db.clientProducts.filter(c => c.client_id !== clientId).concat(ids.map(product_id => ({ client_id: clientId, product_id })));
+      save(db);
+    },
+    async clientVisits() {
+      const me = db.users.find(u => u.id === db.session?.user.id);
+      if (me?.role !== 'cliente' || me.active === false) return [];
+      const allowed = db.clientProducts.filter(c => c.client_id === me.id).map(c => c.product_id);
+      return db.visits.filter(v => allowed.includes(v.product_id))
+        .map(({ id, product_id, client_name, scheduled_at, modality, status, notes, completion_notes, sale_status, vgv, sale_notes }) =>
+          ({ id, product_id, client_name, scheduled_at, modality, status, notes, completion_notes, sale_status, vgv, sale_notes }))
+        .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
+    },
     async visits() {
       const me = db.users.find(u => u.id === db.session?.user.id);
       const list = me?.role === 'admin' ? db.visits : db.visits.filter(v => v.sdr_id === me?.id);
@@ -647,7 +787,7 @@ function demoApi() {
     async updateProfile(id, patch) { const u = db.users.find(x => x.id === id); Object.assign(u, patch); save(db); return clone(u); },
     async createUser(u) {
       if (db.users.some(x => x.email === u.email.toLowerCase())) throw new Error('E-mail já cadastrado.');
-      const r = { id: uid(), full_name: u.full_name, role: u.role, active: true, email: u.email.toLowerCase() };
+      const r = { id: uid(), full_name: u.full_name, role: u.role, company: u.company || null, active: true, email: u.email.toLowerCase() };
       db.users.push(r); save(db); return clone(r);
     },
   };
@@ -678,6 +818,9 @@ const profileById = id => state.profiles.find(p => p.id === id);
 const productName = id => productById(id)?.name ?? '—';
 const sdrName = id => profileById(id)?.full_name ?? '—';
 const isAdmin = () => state.me?.role === 'admin';
+const isClient = () => state.me?.role === 'cliente';
+// Equipe interna (gestores e SDRs); clientes ficam fora de filtros e atribuições.
+const team = () => state.profiles.filter(p => p.role !== 'cliente');
 const brl = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const brl2 = n => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 // Aceita "1.250.000", "1250000,50", "R$ 850.000,00", "850000.5".
@@ -706,6 +849,7 @@ function errMsg(e) {
   if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
   if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail antes de entrar.';
   if (/visits_status_check/i.test(m)) return 'O banco ainda não aceita "aguardando feedback". Rode o SQL 20260929030000_aguardando_feedback.sql no Supabase.';
+  if (/client_visits|client_products|profiles_role_check/i.test(m)) return 'O banco ainda não tem o Portal do Cliente. Rode o SQL 20260930010000_portal_cliente.sql no Supabase.';
   if (/schema cache/i.test(m)) return 'O banco está desatualizado. Rode os SQLs novos da pasta supabase/migrations no Supabase.';
   return m;
 }
@@ -727,6 +871,7 @@ async function boot() {
 function showLogin() {
   state.me = null;
   $('app-view').hidden = true;
+  $('portal-view').hidden = true;
   $('login-view').hidden = false;
 }
 
@@ -743,6 +888,8 @@ async function enterApp(session) {
     return;
   }
   $('login-view').hidden = true;
+  if (isClient()) return enterPortal();
+  $('portal-view').hidden = true;
   $('app-view').hidden = false;
   $('user-name').textContent = state.me.full_name;
   $('user-avatar').textContent = initials(state.me.full_name);
@@ -831,7 +978,7 @@ function render() {
 // ── Filtros compartilhados ────────────────────────────────────────────────────
 function fillFilters() {
   const prodOpts = '<option value="">Todos os produtos</option>' + state.products.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
-  const sdrOpts = '<option value="">Todos os SDRs</option>' + state.profiles.map(p => `<option value="${esc(p.id)}">${esc(p.full_name)}</option>`).join('');
+  const sdrOpts = '<option value="">Todos os SDRs</option>' + team().map(p => `<option value="${esc(p.id)}">${esc(p.full_name)}</option>`).join('');
   ['ag', 're', 'db'].forEach(k => {
     const ps = $(`${k}-f-product`), ss = $(`${k}-f-sdr`);
     const pv = ps.value, sv = ss.value;
@@ -990,7 +1137,7 @@ function modal(html, onSubmit) {
 function openVisitModal({ product_id, date, visit }) {
   const prod = productById(visit?.product_id ?? product_id);
   const d = visit ? new Date(visit.scheduled_at) : null;
-  const sdrs = state.profiles.filter(p => p.active !== false);
+  const sdrs = team().filter(p => p.active !== false);
   const defaultSdr = visit?.sdr_id ?? state.me.id;
   modal(`
     <h2>${visit ? 'Editar visita' : 'Nova visita'}</h2>
@@ -1315,11 +1462,71 @@ function renderAdmin() {
     <td>${p.active !== false ? '<span class="pill pill-ok">Ativo</span>' : '<span class="pill pill-no">Inativo</span>'}</td>
     <td class="actions"><button class="btn-sm" data-edit-product="${esc(p.id)}">Editar</button><button class="btn-sm btn-no" data-delete-product="${esc(p.id)}">Excluir</button></td></tr>`).join('')}</tbody></table>`
     : '<div class="empty">Nenhum produto.</div>';
-  $('admin-users').innerHTML = `<table><tbody>${state.profiles.map(u => `<tr>
+  renderAdminClients();
+  $('admin-users').innerHTML = `<table><tbody>${team().map(u => `<tr>
     <td>${esc(u.full_name)}<div class="muted">${u.role === 'admin' ? 'Gestor' : 'SDR'}</div></td>
     <td>${u.active !== false ? '<span class="pill pill-ok">Ativo</span>' : '<span class="pill pill-no">Inativo</span>'}</td>
     <td class="actions"><button class="btn-sm" data-edit-user="${esc(u.id)}">Editar</button></td></tr>`).join('')}</tbody></table>`;
 }
+
+// ── Clientes (Portal do Incorporador) ─────────────────────────────────────────
+let clientLinks = [];
+async function renderAdminClients() {
+  const clients = state.profiles.filter(p => p.role === 'cliente');
+  try { clientLinks = await api.clientProducts(); } catch (e) { clientLinks = []; }
+  if (!clients.length) { $('admin-clients').innerHTML = '<div class="empty">Nenhum cliente com acesso ao portal ainda.</div>'; return; }
+  $('admin-clients').innerHTML = `<table><thead><tr><th>Responsável</th><th>Empreendimentos liberados</th><th>Status</th><th></th></tr></thead><tbody>${clients.map(c => {
+    const prods = clientLinks.filter(l => l.client_id === c.id).map(l => productName(l.product_id));
+    return `<tr><td><b>${esc(c.full_name)}</b><div class="muted">${esc(c.company || '')} · ${esc(c.email || '')}</div></td>
+      <td>${prods.length ? prods.map(n => `<span class="pill pill-presencial" style="margin:0 4px 4px 0">${esc(n)}</span>`).join('') : '<span class="muted">nenhum</span>'}</td>
+      <td>${c.active !== false ? '<span class="pill pill-ok">Ativo</span>' : '<span class="pill pill-no">Inativo</span>'}</td>
+      <td class="actions"><button class="btn-sm" data-edit-client="${esc(c.id)}">Editar</button></td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+function productChecks(selected) {
+  const list = state.products.filter(p => p.active !== false || selected.includes(p.id));
+  if (!list.length) return '<div class="muted">Cadastre um produto primeiro.</div>';
+  return `<div class="prod-checks">${list.map(p => `<label><input type="checkbox" name="products" value="${esc(p.id)}" ${selected.includes(p.id) ? 'checked' : ''}> ${esc(p.name)}</label>`).join('')}</div>`;
+}
+$('add-client-btn').addEventListener('click', () => {
+  modal(`
+    <h2>Novo acesso de cliente</h2><div class="sub">O responsável pelo empreendimento entra no mesmo site e vê só o Portal do Incorporador.</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <div class="field"><label>Nome do responsável</label><input name="full_name" type="text" required></div>
+    <div class="field"><label>Incorporadora</label><input name="company" type="text" required placeholder="Ex.: Greenview Incorporadora"></div>
+    <div class="field"><label>E-mail</label><input name="email" type="email" required></div>
+    <div class="field"><label>Senha provisória</label><input name="password" type="text" minlength="8" required placeholder="mínimo 8 caracteres"></div>
+    <div class="field"><label>Empreendimentos que ele vê</label>${productChecks([])}</div>
+    <div class="modal-actions"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-primary" type="submit">Criar acesso</button></div>`,
+  async fd => {
+    const ids = fd.getAll('products');
+    if (!ids.length) throw new Error('Marque pelo menos um empreendimento.');
+    const company = fd.get('company').trim();
+    const created = await api.createUser({ full_name: fd.get('full_name').trim(), email: fd.get('email').trim(), password: fd.get('password'), role: 'cliente', company });
+    // Garante o papel de cliente mesmo com a função de login antiga (que só conhece SDR/gestor).
+    await api.updateProfile(created.id, { role: 'cliente', company });
+    await api.setClientProducts(created.id, ids);
+    toast('Acesso de cliente criado.'); await refresh();
+  });
+});
+$('admin-clients').addEventListener('click', e => {
+  const b = e.target.closest('[data-edit-client]'); if (!b) return;
+  const c = profileById(b.dataset.editClient);
+  const selected = clientLinks.filter(l => l.client_id === c.id).map(l => l.product_id);
+  modal(`
+    <h2>Editar acesso de cliente</h2><div class="sub">${esc(c.email || '')}</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <div class="field"><label>Nome do responsável</label><input name="full_name" type="text" value="${esc(c.full_name)}" required></div>
+    <div class="field"><label>Incorporadora</label><input name="company" type="text" value="${esc(c.company || '')}" required></div>
+    <div class="field"><label>Empreendimentos que ele vê</label>${productChecks(selected)}</div>
+    <div class="field"><label>Status</label><select name="active"><option value="1">Ativo</option><option value="0" ${c.active === false ? 'selected' : ''}>Inativo</option></select></div>
+    <div class="modal-actions"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-primary" type="submit">Salvar</button></div>`,
+  async fd => {
+    await api.updateProfile(c.id, { full_name: fd.get('full_name').trim(), company: fd.get('company').trim(), active: fd.get('active') === '1' });
+    await api.setClientProducts(c.id, fd.getAll('products'));
+    toast('Acesso de cliente atualizado.'); await refresh();
+  });
+});
 
 $('add-product-btn').addEventListener('click', () => openProductModal());
 $('admin-products').addEventListener('click', e => {
@@ -1408,6 +1615,159 @@ $('admin-users').addEventListener('click', e => {
     toast('Acesso atualizado.'); await refresh();
   });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Portal do Cliente (somente leitura, sem dados de SDR)
+// ══════════════════════════════════════════════════════════════════════════════
+const pt = { products: [], visits: [], product: null, period: 30, tab: 'geral', month: startOfMonth(new Date()) };
+let ptChart = null;
+
+async function enterPortal() {
+  $('app-view').hidden = true;
+  $('portal-view').hidden = false;
+  $('pt-name').textContent = state.me.full_name;
+  $('pt-company').textContent = state.me.company || '';
+  $('pt-avatar').textContent = initials(state.me.full_name);
+  pt.tab = 'geral'; pt.month = startOfMonth(new Date());
+  $('pt-tabs').querySelectorAll('.pt-tab').forEach(t => t.classList.toggle('on', t.dataset.tab === 'geral'));
+  try {
+    [pt.products, pt.visits] = await Promise.all([api.products(), api.clientVisits()]);
+  } catch (e) {
+    pt.products = []; pt.visits = [];
+    toast('Erro ao carregar o portal: ' + errMsg(e));
+  }
+  pt.products = pt.products.filter(p => p.active !== false);
+  if (!pt.products.some(p => p.id === pt.product)) pt.product = pt.products[0]?.id ?? null;
+  $('pt-select').innerHTML = pt.products.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  $('pt-select').value = pt.product ?? '';
+  $('pt-select-wrap').hidden = pt.products.length < 2;
+  renderPortal();
+}
+$('pt-logout').addEventListener('click', async () => { await api.signOut(); showLogin(); });
+$('pt-select').addEventListener('change', e => { pt.product = e.target.value; renderPortal(); });
+$('pt-tabs').addEventListener('click', e => {
+  const b = e.target.closest('.pt-tab'); if (!b) return;
+  pt.tab = b.dataset.tab;
+  $('pt-tabs').querySelectorAll('.pt-tab').forEach(t => t.classList.toggle('on', t === b));
+  renderPortal();
+});
+$('pt-period').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  pt.period = Number(b.dataset.p);
+  $('pt-period').querySelectorAll('button').forEach(t => t.classList.toggle('on', t === b));
+  renderPortal();
+});
+$('pt-prev').addEventListener('click', () => { pt.month = new Date(pt.month.getFullYear(), pt.month.getMonth() - 1, 1); ptAgenda(); });
+$('pt-next-m').addEventListener('click', () => { pt.month = new Date(pt.month.getFullYear(), pt.month.getMonth() + 1, 1); ptAgenda(); });
+
+const ptMine = () => pt.visits.filter(v => v.product_id === pt.product);
+function ptInPeriod(list) {
+  const now = new Date();
+  const from = new Date(now); from.setDate(from.getDate() - pt.period); from.setHours(0, 0, 0, 0);
+  $('pt-period-note').textContent = `${from.toLocaleDateString('pt-BR')} até hoje · visitas futuras aparecem em “Próximas visitas”`;
+  return list.filter(v => { const d = new Date(v.scheduled_at); return d >= from && d <= now; });
+}
+
+function renderPortal() {
+  const p = pt.products.find(x => x.id === pt.product);
+  const none = !p;
+  $('pt-empty').hidden = !none;
+  $('pt-prod').textContent = p ? p.name : 'Portal do Incorporador';
+  $('pt-loc').textContent = p?.location || '';
+  ['geral', 'agenda', 'realizadas'].forEach(t => { $('pt-' + t).hidden = none || pt.tab !== t; });
+  $('pt-toolbar').hidden = none || pt.tab === 'agenda';
+  if (none) return;
+  if (pt.tab === 'geral') ptGeral();
+  if (pt.tab === 'agenda') ptAgenda();
+  if (pt.tab === 'realizadas') ptDone();
+}
+
+function ptGeral() {
+  const all = ptMine(); const vs = ptInPeriod(all); const now = new Date();
+  const shown = vs.filter(v => v.status === 'realizada');
+  const noShow = vs.filter(v => v.status === 'nao_compareceu').length;
+  const sales = shown.filter(v => v.sale_status === 'vendeu');
+  const vgv = sales.reduce((a, v) => a + Number(v.vgv || 0), 0);
+  const concl = shown.length + noShow;
+  $('pk-ag').textContent = vs.length;
+  $('pk-ag-s').textContent = `${vs.filter(v => v.modality === 'presencial').length} presenciais`;
+  $('pk-co').textContent = shown.length;
+  $('pk-co-s').textContent = `${noShow} não compareceram`;
+  $('pk-sh').textContent = concl ? Math.round(shown.length / concl * 100) + '%' : '—';
+  $('pk-ve').textContent = sales.length;
+  $('pk-ve-s').textContent = shown.length ? `${Math.round(sales.length / shown.length * 100)}% de conversão` : 'sem visitas concluídas';
+  $('pk-vgv').textContent = brl(vgv);
+  $('pk-vgv-s').textContent = sales.length ? `ticket médio ${brl(vgv / sales.length)}` : 'nenhuma venda no período';
+
+  const max = Math.max(vs.length, 1);
+  $('pt-funnel').innerHTML = [['Agendadas', vs.length], ['Compareceram', shown.length], ['Vendas', sales.length]]
+    .map(([l, n]) => `<div class="f-row"><span>${l}</span><div class="bar"><i style="width:${n ? Math.max(n / max * 100, 3) : 0}%"></i></div><span class="v">${n}</span></div>`).join('')
+    + `<div class="f-rate">${vs.length ? Math.round(shown.length / vs.length * 100) : 0}% chegam à visita · ${shown.length ? Math.round(sales.length / shown.length * 100) : 0}% das visitas viram venda</div>`;
+
+  const upcoming = all.filter(v => (v.status === 'agendada' || v.status === 'aguardando_feedback') && new Date(v.scheduled_at) >= now);
+  $('pt-next-note').textContent = upcoming.length ? `${upcoming.length} agendada${upcoming.length === 1 ? '' : 's'} a partir de hoje` : '';
+  $('pt-next').innerHTML = upcoming.length ? upcoming.slice(0, 8).map(v => { const d = new Date(v.scheduled_at); return `<div class="pt-item">
+      <div class="pt-date"><b>${pad(d.getDate())}</b><span>${d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span></div>
+      <div><div class="t">${esc(v.client_name)}</div><div class="s">${d.toLocaleDateString('pt-BR', { weekday: 'long' })} · ${hm(d)}${v.notes ? ' · ' + esc(v.notes) : ''}</div></div>
+      <span class="pill pill-${v.modality}">${v.modality === 'presencial' ? 'Presencial' : 'Online'}</span></div>`; }).join('')
+    : '<div class="empty">Nenhuma visita agendada daqui para frente.</div>';
+  ptDrawChart(vs);
+}
+
+function ptDrawChart(vs) {
+  if (typeof Chart === 'undefined') return;
+  const w = {};
+  vs.forEach(v => { const k = ymd(weekStart(new Date(v.scheduled_at))); (w[k] ||= { a: 0, c: 0 }); w[k].a++; if (v.status === 'realizada') w[k].c++; });
+  const keys = Object.keys(w).sort();
+  const css = getComputedStyle(document.documentElement);
+  const c1 = css.getPropertyValue('--series-1').trim(), c2 = css.getPropertyValue('--series-2').trim();
+  const ink = css.getPropertyValue('--text-secondary').trim(), grid = css.getPropertyValue('--border').trim();
+  if (ptChart) ptChart.destroy();
+  ptChart = new Chart($('pt-chart'), {
+    type: 'bar',
+    data: { labels: keys.map(k => 'Sem. ' + new Date(k + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })),
+      datasets: [
+        { label: 'Agendadas', data: keys.map(k => w[k].a), backgroundColor: c1, borderRadius: 4, maxBarThickness: 20 },
+        { label: 'Compareceram', data: keys.map(k => w[k].c), backgroundColor: c2, borderRadius: 4, maxBarThickness: 20 },
+      ] },
+    options: { responsive: true, maintainAspectRatio: false, datasets: { bar: { categoryPercentage: .7, barPercentage: .9 } },
+      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+      scales: { x: { grid: { display: false }, ticks: { color: ink, font: { size: 11 } } },
+        y: { beginAtZero: true, ticks: { precision: 0, color: ink, font: { size: 11 } }, grid: { color: grid }, border: { display: false } } } },
+  });
+}
+
+function ptAgenda() {
+  const m = pt.month;
+  const label = m.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  $('pt-month').textContent = label[0].toUpperCase() + label.slice(1);
+  const byDay = {};
+  ptMine().forEach(v => { (byDay[ymd(new Date(v.scheduled_at))] ||= []).push(v); });
+  const todayKey = ymd(new Date());
+  let html = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => `<div class="cal-dow">${d}</div>`).join('');
+  for (let i = 0; i < m.getDay(); i++) html += '<div class="cal-day ro other"></div>';
+  const days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+  for (let d = 1; d <= days; d++) {
+    const key = ymd(new Date(m.getFullYear(), m.getMonth(), d));
+    const evs = (byDay[key] || []).sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
+    html += `<div class="cal-day ro ${key === todayKey ? 'today' : ''}"><span class="num">${d}</span>${evs.slice(0, 3).map(v =>
+      `<span class="cal-ev ${v.status}" title="${esc(v.client_name)} · ${hm(new Date(v.scheduled_at))}">${hm(new Date(v.scheduled_at))} ${esc(v.client_name)}</span>`).join('')}${evs.length > 3 ? `<span class="cal-more">+${evs.length - 3}</span>` : ''}</div>`;
+  }
+  $('pt-cal').innerHTML = html;
+}
+
+function ptDone() {
+  const now = new Date();
+  const vs = ptInPeriod(ptMine()).filter(v => v.status !== 'agendada' || new Date(v.scheduled_at) < now).reverse();
+  $('pt-done').innerHTML = vs.length ? vs.map(v => {
+    const att = v.status === 'realizada' ? '<span class="pill pill-ok">Sim</span>' : v.status === 'nao_compareceu' ? '<span class="pill pill-no">Não</span>' : '<span class="pill pill-late">Aguardando retorno</span>';
+    const res = v.sale_status === 'vendeu' ? '<span class="pill pill-sale">Vendeu</span>' : v.sale_status === 'nao_vendeu' ? '<span class="pill pill-no">Não vendeu</span>' : '<span class="muted">—</span>';
+    const obs = [v.completion_notes, v.sale_notes].filter(Boolean).map(esc).join('<br>') || '—';
+    return `<tr><td style="white-space:nowrap">${fmtDate(v.scheduled_at)}</td><td>${esc(v.client_name)}</td>
+      <td><span class="pill pill-${v.modality}">${v.modality === 'presencial' ? 'Presencial' : 'Online'}</span></td>
+      <td>${att}</td><td>${res}</td><td class="money">${v.sale_status === 'vendeu' ? brl2(v.vgv) : '—'}</td><td style="color:var(--text-secondary)">${obs}</td></tr>`;
+  }).join('') : '<tr><td colspan="7" class="empty">Nenhuma visita concluída no período.</td></tr>';
+}
 
 boot();
 </script>

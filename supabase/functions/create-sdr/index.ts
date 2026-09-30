@@ -1,4 +1,4 @@
-// Edge Function: cria o login de um SDR (somente gestores/admin podem chamar).
+// Edge Function: cria o login de um SDR, gestor ou cliente (somente gestores/admin podem chamar).
 // Deploy: supabase functions deploy create-sdr
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
   const { data: caller } = await admin.from('profiles').select('role, active').eq('id', user.id).single();
   if (caller?.role !== 'admin' || caller?.active === false) return json({ error: 'Apenas gestores podem criar acessos.' }, 403);
 
-  const { full_name, email, password, role } = await req.json().catch(() => ({}));
+  const { full_name, email, password, role, company } = await req.json().catch(() => ({}));
   if (!full_name || !email || !password) return json({ error: 'Nome, e-mail e senha são obrigatórios.' }, 400);
   if (String(password).length < 8) return json({ error: 'A senha precisa de pelo menos 8 caracteres.' }, 400);
 
@@ -29,8 +29,8 @@ Deno.serve(async (req) => {
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name },
-    app_metadata: { role: role === 'admin' ? 'admin' : 'sdr' },
+    user_metadata: { full_name, company: company ?? null },
+    app_metadata: { role: role === 'admin' ? 'admin' : role === 'cliente' ? 'cliente' : 'sdr' },
   });
   if (error) return json({ error: /already/i.test(error.message) ? 'E-mail já cadastrado.' : error.message }, 400);
 

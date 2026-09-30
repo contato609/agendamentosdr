@@ -67,3 +67,13 @@ Abra https://agendamentosdr.sistemadevisitas.com/?demo para usar sem backend (da
   Um SDR não vê as visitas nem os números dos outros SDRs.
 - A regra fica nas políticas do banco (`supabase/migrations/20260930000000_hierarquia_sdr.sql`),
   então vale mesmo para quem tentar acessar os dados fora da tela.
+
+## Portal do Cliente (Portal do Incorporador)
+
+- O responsável pelo empreendimento entra **no mesmo site**; o sistema reconhece o papel `cliente` e abre o portal.
+- Vê só os empreendimentos liberados para ele: visão geral (agendadas, compareceram, show up, vendas, VGV, funil),
+  agenda do mês e visitas realizadas com nome completo do lead e observações.
+- **Nunca vê qual SDR agendou ou atendeu**: o portal lê a função `client_visits()`, que devolve as visitas sem
+  `sdr_id` e sem `created_by`; a tabela de visitas continua fechada para o cliente.
+- O gestor cria e edita esses acessos em **Administração → Clientes**.
+- Requer `supabase/migrations/20260930010000_portal_cliente.sql`.
