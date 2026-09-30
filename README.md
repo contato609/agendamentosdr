@@ -77,3 +77,13 @@ Abra https://agendamentosdr.sistemadevisitas.com/?demo para usar sem backend (da
   `sdr_id` e sem `created_by`; a tabela de visitas continua fechada para o cliente.
 - O gestor cria e edita esses acessos em **Administração → Clientes**.
 - Requer `supabase/migrations/20260930010000_portal_cliente.sql`.
+
+### Feedback do incorporador
+
+- No portal, a aba **Visitas agendadas** lista as visitas em aberto do empreendimento com três ações:
+  **Vendeu** (pede o VGV), **Não comprou** (pede o motivo) e **Devolver p/ reagendar** (recado opcional).
+- Vendeu/Não comprou transformam a visita em comparecida com o resultado; na equipe aparece "via incorporador".
+- Devolver marca a visita com "reagendar · pedido do incorporador" em *Aguardando feedback* para o SDR responsável;
+  ao reagendar (botão **Reagendar** → nova data), ela volta para *Agendadas*.
+- O cliente grava pela função `client_feedback()`, que confere se a visita é de um empreendimento liberado.
+  Requer `supabase/migrations/20260930020000_feedback_incorporador.sql`.

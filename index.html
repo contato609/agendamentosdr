@@ -584,6 +584,7 @@
       <nav class="pt-tabs" id="pt-tabs">
         <button class="pt-tab on" data-tab="geral">Visão geral</button>
         <button class="pt-tab" data-tab="agenda">Agenda</button>
+        <button class="pt-tab" data-tab="feedback">Visitas agendadas <span class="badge" id="pt-fb-count">0</span></button>
         <button class="pt-tab" data-tab="realizadas">Visitas realizadas</button>
       </nav>
     </div>
@@ -617,6 +618,11 @@
         <div class="card-header"><div class="cal-head"><button class="btn-sm" id="pt-prev" aria-label="Mês anterior">‹</button><div class="month" id="pt-month"></div><button class="btn-sm" id="pt-next-m" aria-label="Próximo mês">›</button></div></div>
         <div class="cal-grid" id="pt-cal"></div>
       </div>
+    </div>
+    <div id="pt-feedback" hidden>
+      <div class="card"><div class="card-header"><div><div class="card-title">Aguardando o seu feedback</div><div class="muted">A visita já aconteceu? Conte se vendeu, se não comprou ou devolva para a Digital Moon reagendar.</div></div></div><div id="pt-fb-wait"></div></div>
+      <div class="card"><div class="card-header"><div class="card-title">Próximas visitas</div><span class="muted">também aceitam feedback, se a visita acontecer antes</span></div><div id="pt-fb-next"></div></div>
+      <div class="card" id="pt-fb-back-card"><div class="card-header"><div class="card-title">Devolvidas para reagendamento</div><span class="muted">a equipe Digital Moon vai remarcar</span></div><div id="pt-fb-back"></div></div>
     </div>
     <div id="pt-realizadas" hidden>
       <div class="card"><div class="card-header"><div class="card-title">Visitas concluídas</div><span class="muted">o que aconteceu em cada visita</span></div>
@@ -674,6 +680,10 @@ function supabaseApi() {
     },
     // Visitas do cliente: função do banco que já devolve os dados sem SDR.
     async clientVisits() { return must(await sb.rpc('client_visits')); },
+    // Feedback do incorporador: vendeu / nao_vendeu / reagendar (validado no banco).
+    async clientFeedback(visitId, outcome, vgv, note) {
+      must(await sb.rpc('client_feedback', { p_visit: visitId, p_outcome: outcome, p_vgv: vgv ?? null, p_note: note ?? null }));
+    },
     // Criação de login: Edge Function `create-sdr` (usa a service role no servidor).
     async createUser(u) {
       const { data, error } = await sb.functions.invoke('create-sdr', { body: u });
@@ -688,7 +698,7 @@ function supabaseApi() {
 // Camada de dados — Demonstração (localStorage)
 // ══════════════════════════════════════════════════════════════════════════════
 function demoApi() {
-  const KEY = 'moon-visitas-demo-v3';
+  const KEY = 'moon-visitas-demo-v4';
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };
   const save = db => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} };
@@ -764,9 +774,31 @@ function demoApi() {
       if (me?.role !== 'cliente' || me.active === false) return [];
       const allowed = db.clientProducts.filter(c => c.client_id === me.id).map(c => c.product_id);
       return db.visits.filter(v => allowed.includes(v.product_id))
-        .map(({ id, product_id, client_name, scheduled_at, modality, status, notes, completion_notes, sale_status, vgv, sale_notes }) =>
-          ({ id, product_id, client_name, scheduled_at, modality, status, notes, completion_notes, sale_status, vgv, sale_notes }))
+        .map(({ id, product_id, client_name, scheduled_at, modality, status, notes, completion_notes, sale_status, vgv, sale_notes, reschedule_requested, reschedule_note, feedback_source }) =>
+          ({ id, product_id, client_name, scheduled_at, modality, status, notes, completion_notes, sale_status, vgv, sale_notes, reschedule_requested: !!reschedule_requested, reschedule_note: reschedule_note ?? null, feedback_source: feedback_source ?? null }))
         .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
+    },
+    // Mesmas regras da função client_feedback() do banco.
+    async clientFeedback(visitId, outcome, vgv, note) {
+      const me = db.users.find(u => u.id === db.session?.user.id);
+      if (me?.role !== 'cliente' || me.active === false) throw new Error('Acesso negado.');
+      const allowed = db.clientProducts.filter(c => c.client_id === me.id).map(c => c.product_id);
+      const v = db.visits.find(x => x.id === visitId && allowed.includes(x.product_id));
+      if (!v) throw new Error('Visita não encontrada.');
+      const note2 = (note || '').trim() || null;
+      if (outcome === 'vendeu' || outcome === 'nao_vendeu') {
+        if (v.status === 'nao_compareceu' || (v.status === 'realizada' && v.sale_status)) throw new Error('Esta visita já tem resultado registrado.');
+        if (outcome === 'vendeu' && !(vgv > 0)) throw new Error('Informe o VGV da venda.');
+        if (outcome === 'nao_vendeu' && !note2) throw new Error('Informe por que o cliente não comprou.');
+        Object.assign(v, { status: 'realizada', completed_at: v.completed_at || new Date().toISOString(),
+          completion_notes: v.completion_notes || 'Comparecimento confirmado pelo incorporador.',
+          sale_status: outcome, vgv: outcome === 'vendeu' ? Math.round(vgv * 100) / 100 : null, sale_notes: note2,
+          sale_at: new Date().toISOString(), feedback_source: 'cliente', reschedule_requested: false });
+      } else if (outcome === 'reagendar') {
+        if (!['agendada', 'aguardando_feedback'].includes(v.status)) throw new Error('Só visitas ainda em aberto podem voltar para reagendamento.');
+        Object.assign(v, { status: 'aguardando_feedback', reschedule_requested: true, reschedule_note: note2, feedback_source: 'cliente' });
+      } else throw new Error('Opção de feedback inválida.');
+      save(db);
     },
     async visits() {
       const me = db.users.find(u => u.id === db.session?.user.id);
@@ -849,6 +881,7 @@ function errMsg(e) {
   if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
   if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail antes de entrar.';
   if (/visits_status_check/i.test(m)) return 'O banco ainda não aceita "aguardando feedback". Rode o SQL 20260929030000_aguardando_feedback.sql no Supabase.';
+  if (/client_feedback|reschedule_requested|feedback_source/i.test(m)) return 'O banco ainda não tem o feedback do incorporador. Rode o SQL 20260930020000_feedback_incorporador.sql no Supabase.';
   if (/client_visits|client_products|profiles_role_check/i.test(m)) return 'O banco ainda não tem o Portal do Cliente. Rode o SQL 20260930010000_portal_cliente.sql no Supabase.';
   if (/schema cache/i.test(m)) return 'O banco está desatualizado. Rode os SQLs novos da pasta supabase/migrations no Supabase.';
   return m;
@@ -1175,6 +1208,11 @@ function openVisitModal({ product_id, date, visit }) {
       notes: fd.get('notes').trim() || null,
     };
     if (!visit && new Date(payload.scheduled_at) < new Date()) throw new Error('Escolha uma data e horário futuros.');
+    // Reagendou para uma data futura: a visita volta para "Agendadas" e o pedido do incorporador é atendido.
+    const dateChanged = visit && new Date(payload.scheduled_at).getTime() !== new Date(visit.scheduled_at).getTime();
+    if (visit && isAwaitingFeedback(visit) && (dateChanged || visit.reschedule_requested) && new Date(payload.scheduled_at) > new Date()) {
+      Object.assign(payload, { status: 'agendada', reschedule_requested: false });
+    }
     if (visit) await api.updateVisit(visit.id, payload);
     else await api.createVisit({ ...payload, product_id: prod.id });
     toast(visit ? 'Visita atualizada.' : 'Visita agendada! Ela já aparece em Visitas agendadas.');
@@ -1207,8 +1245,8 @@ function renderAgendadas() {
       const manual = v.status === 'aguardando_feedback';
       const p = productById(v.product_id);
       return `<tr>
-        <td>${fmtDateTime(v.scheduled_at)} ${late ? '<span class="pill pill-late">aguardando feedback</span>' : ''}</td>
-        <td>${esc(v.client_name)}${v.notes ? `<div class="muted">${esc(v.notes)}</div>` : ''}</td>
+        <td>${fmtDateTime(v.scheduled_at)} ${v.reschedule_requested ? '<span class="pill pill-no">reagendar · pedido do incorporador</span>' : late ? '<span class="pill pill-late">aguardando feedback</span>' : ''}</td>
+        <td>${esc(v.client_name)}${v.notes ? `<div class="muted">${esc(v.notes)}</div>` : ''}${v.reschedule_requested && v.reschedule_note ? `<div class="muted"><b>Incorporador:</b> ${esc(v.reschedule_note)}</div>` : ''}</td>
         <td><span class="dot" style="background:${esc(p?.color || '#888')}"></span>${esc(productName(v.product_id))}</td>
         <td><span class="pill pill-${v.modality}">${v.modality === 'presencial' ? 'Presencial' : 'Online'}</span></td>
         <td>${esc(sdrName(v.sdr_id))}</td>
@@ -1216,8 +1254,8 @@ function renderAgendadas() {
           <button class="btn-sm btn-ok" data-act="done" data-id="${esc(v.id)}">✓ Compareceu</button>
           <button class="btn-sm btn-no" data-act="noshow" data-id="${esc(v.id)}">Não compareceu</button>
           ${late ? '' : `<button class="btn-sm" data-act="feedback" data-id="${esc(v.id)}" title="A visita já aconteceu: aguardar o retorno do cliente">Aguardando feedback</button>`}
-          ${manual && new Date(v.scheduled_at) >= now ? `<button class="btn-sm" data-act="unfeedback" data-id="${esc(v.id)}">Voltar p/ agendadas</button>` : ''}
-          <button class="btn-sm" data-act="edit" data-id="${esc(v.id)}">Editar</button>
+          ${manual && !v.reschedule_requested && new Date(v.scheduled_at) >= now ? `<button class="btn-sm" data-act="unfeedback" data-id="${esc(v.id)}">Voltar p/ agendadas</button>` : ''}
+          <button class="btn-sm" data-act="edit" data-id="${esc(v.id)}">${v.reschedule_requested ? 'Reagendar' : 'Editar'}</button>
         </td>
       </tr>`;
     }).join('')}</tbody></table>`;
@@ -1275,8 +1313,9 @@ function renderRealizadas() {
   if (!rows.length) { $('re-table').innerHTML = '<div class="empty">Nenhuma visita aqui ainda.</div>'; return; }
 
   const result = v => {
-    if (v.sale_status === 'vendeu') return `<span class="pill pill-sale money">Vendeu · ${brl(v.vgv)}</span>`;
-    if (v.sale_status === 'nao_vendeu') return '<span class="pill pill-no">Não vendeu</span>';
+    const via = v.feedback_source === 'cliente' ? '<div class="muted">via incorporador</div>' : '';
+    if (v.sale_status === 'vendeu') return `<span class="pill pill-sale money">Vendeu · ${brl(v.vgv)}</span>${via}`;
+    if (v.sale_status === 'nao_vendeu') return `<span class="pill pill-no">Não vendeu</span>${via}`;
     return `<div style="display:flex;gap:6px;flex-wrap:wrap">
       <button class="btn-sm btn-ok" data-sale="vendeu" data-id="${esc(v.id)}">Vendeu</button>
       <button class="btn-sm btn-no" data-sale="nao_vendeu" data-id="${esc(v.id)}">Não vendeu</button></div>`;
@@ -1284,8 +1323,8 @@ function renderRealizadas() {
   const cols = {
     compareceu: ['Observação da visita', v => esc(v.completion_notes || '—'), 'Resultado', result],
     nao_compareceu: ['Observação', v => esc(v.completion_notes || '—')],
-    vendeu: ['VGV', v => `<span class="money"><b>${brl2(v.vgv)}</b></span>`, 'Observação da venda', v => esc(v.sale_notes || '—')],
-    nao_vendeu: ['Motivo de não comprar', v => esc(v.sale_notes || '—'), 'Observação da visita', v => `<span class="muted">${esc(v.completion_notes || '—')}</span>`],
+    vendeu: ['VGV', v => `<span class="money"><b>${brl2(v.vgv)}</b></span>${v.feedback_source === 'cliente' ? '<div class="muted">via incorporador</div>' : ''}`, 'Observação da venda', v => esc(v.sale_notes || '—')],
+    nao_vendeu: ['Motivo de não comprar', v => esc(v.sale_notes || '—') + (v.feedback_source === 'cliente' ? '<div class="muted">via incorporador</div>' : ''), 'Observação da visita', v => `<span class="muted">${esc(v.completion_notes || '—')}</span>`],
   }[sub];
   const extraHead = [], extraCell = [];
   for (let i = 0; i < cols.length; i += 2) { extraHead.push(cols[i]); extraCell.push(cols[i + 1]); }
@@ -1630,6 +1669,9 @@ async function enterPortal() {
   $('pt-avatar').textContent = initials(state.me.full_name);
   pt.tab = 'geral'; pt.month = startOfMonth(new Date());
   $('pt-tabs').querySelectorAll('.pt-tab').forEach(t => t.classList.toggle('on', t.dataset.tab === 'geral'));
+  await ptLoad();
+}
+async function ptLoad() {
   try {
     [pt.products, pt.visits] = await Promise.all([api.products(), api.clientVisits()]);
   } catch (e) {
@@ -1674,11 +1716,13 @@ function renderPortal() {
   $('pt-empty').hidden = !none;
   $('pt-prod').textContent = p ? p.name : 'Portal do Incorporador';
   $('pt-loc').textContent = p?.location || '';
-  ['geral', 'agenda', 'realizadas'].forEach(t => { $('pt-' + t).hidden = none || pt.tab !== t; });
-  $('pt-toolbar').hidden = none || pt.tab === 'agenda';
+  ['geral', 'agenda', 'feedback', 'realizadas'].forEach(t => { $('pt-' + t).hidden = none || pt.tab !== t; });
+  $('pt-toolbar').hidden = none || pt.tab === 'agenda' || pt.tab === 'feedback';
+  $('pt-fb-count').textContent = ptMine().filter(v => ptOpen(v) && !v.reschedule_requested && new Date(v.scheduled_at) < new Date()).length;
   if (none) return;
   if (pt.tab === 'geral') ptGeral();
   if (pt.tab === 'agenda') ptAgenda();
+  if (pt.tab === 'feedback') ptFeedback();
   if (pt.tab === 'realizadas') ptDone();
 }
 
@@ -1756,11 +1800,68 @@ function ptAgenda() {
   $('pt-cal').innerHTML = html;
 }
 
+const ptOpen = v => v.status === 'agendada' || v.status === 'aguardando_feedback';
+
+function ptFeedback() {
+  const now = new Date();
+  const open = ptMine().filter(ptOpen);
+  const wait = open.filter(v => !v.reschedule_requested && new Date(v.scheduled_at) < now).reverse();
+  const next = open.filter(v => !v.reschedule_requested && new Date(v.scheduled_at) >= now);
+  const back = open.filter(v => v.reschedule_requested);
+  const row = (v, actions) => { const d = new Date(v.scheduled_at); return `<div class="pt-item">
+    <div class="pt-date"><b>${pad(d.getDate())}</b><span>${d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span></div>
+    <div><div class="t">${esc(v.client_name)} <span class="pill pill-${v.modality}" style="margin-left:4px">${v.modality === 'presencial' ? 'Presencial' : 'Online'}</span></div>
+      <div class="s">${d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })} · ${hm(d)}${v.notes ? ' · ' + esc(v.notes) : ''}${v.reschedule_note ? ' · <b>Seu pedido:</b> ' + esc(v.reschedule_note) : ''}</div></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${actions ? `
+      <button class="btn-sm btn-ok" data-fb="vendeu" data-id="${esc(v.id)}">Vendeu</button>
+      <button class="btn-sm btn-no" data-fb="nao_vendeu" data-id="${esc(v.id)}">Não comprou</button>
+      <button class="btn-sm" data-fb="reagendar" data-id="${esc(v.id)}">Devolver p/ reagendar</button>` : '<span class="pill pill-late">com a equipe</span>'}</div></div>`; };
+  $('pt-fb-wait').innerHTML = wait.length ? wait.map(v => row(v, true)).join('') : '<div class="empty">Nenhuma visita esperando o seu feedback.</div>';
+  $('pt-fb-next').innerHTML = next.length ? next.map(v => row(v, true)).join('') : '<div class="empty">Nenhuma visita agendada daqui para frente.</div>';
+  $('pt-fb-back-card').hidden = !back.length;
+  $('pt-fb-back').innerHTML = back.map(v => row(v, false)).join('');
+}
+$('pt-feedback').addEventListener('click', e => {
+  const b = e.target.closest('[data-fb]'); if (!b) return;
+  const v = pt.visits.find(x => x.id === b.dataset.id); if (!v) return;
+  openClientFeedback(v, b.dataset.fb);
+});
+
+function openClientFeedback(v, outcome) {
+  const d = new Date(v.scheduled_at);
+  const cfg = {
+    vendeu: { title: 'Vendeu', label: 'Observação da venda (opcional)', ph: 'Unidade, forma de pagamento, condições…', req: false, btn: 'Registrar venda' },
+    nao_vendeu: { title: 'Não comprou', label: 'Por que o cliente não comprou?', ph: 'Preço, localização, financiamento, timing…', req: true, btn: 'Registrar' },
+    reagendar: { title: 'Devolver para reagendamento', label: 'Recado para a equipe (opcional)', ph: 'Ex.: cliente pediu outro dia, não conseguiu vir…', req: false, btn: 'Devolver para a Digital Moon' },
+  }[outcome];
+  const form = modal(`
+    <h2>${cfg.title}</h2>
+    <div class="sub">${esc(v.client_name)} · ${d.toLocaleDateString('pt-BR')} · ${hm(d)}</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    ${outcome === 'reagendar' ? '<p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">A visita volta para a equipe da Digital Moon, que entra em contato com o cliente e marca uma nova data.</p>' : ''}
+    ${outcome === 'vendeu' ? `<div class="field"><label>VGV da venda (R$)</label><input name="vgv" type="text" inputmode="decimal" required placeholder="Ex.: 850.000,00" autocomplete="off"></div>` : ''}
+    <div class="field"><label>${cfg.label}</label><textarea name="note" ${cfg.req ? 'required' : ''} placeholder="${cfg.ph}"></textarea></div>
+    <div class="modal-actions"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-primary" type="submit">${cfg.btn}</button></div>`,
+  async fd => {
+    let vgv = null;
+    if (outcome === 'vendeu') {
+      vgv = parseBRL(fd.get('vgv'));
+      if (!Number.isFinite(vgv) || vgv <= 0) throw new Error('Informe o VGV em reais, por exemplo 850.000,00.');
+    }
+    await api.clientFeedback(v.id, outcome, vgv, fd.get('note'));
+    toast(outcome === 'vendeu' ? `Venda registrada: ${brl2(vgv)}. Obrigado!` : outcome === 'nao_vendeu' ? 'Feedback registrado. Obrigado!' : 'Visita devolvida para reagendamento.');
+    await ptLoad();
+  });
+  const input = form.querySelector('[name=vgv]');
+  input?.addEventListener('blur', () => { const n = parseBRL(input.value); if (Number.isFinite(n) && n > 0) input.value = n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); });
+}
+
 function ptDone() {
   const now = new Date();
   const vs = ptInPeriod(ptMine()).filter(v => v.status !== 'agendada' || new Date(v.scheduled_at) < now).reverse();
   $('pt-done').innerHTML = vs.length ? vs.map(v => {
-    const att = v.status === 'realizada' ? '<span class="pill pill-ok">Sim</span>' : v.status === 'nao_compareceu' ? '<span class="pill pill-no">Não</span>' : '<span class="pill pill-late">Aguardando retorno</span>';
+    const att = v.status === 'realizada' ? '<span class="pill pill-ok">Sim</span>' : v.status === 'nao_compareceu' ? '<span class="pill pill-no">Não</span>'
+      : v.reschedule_requested ? '<span class="pill pill-no">Devolvida p/ reagendar</span>' : '<span class="pill pill-late">Aguardando retorno</span>';
     const res = v.sale_status === 'vendeu' ? '<span class="pill pill-sale">Vendeu</span>' : v.sale_status === 'nao_vendeu' ? '<span class="pill pill-no">Não vendeu</span>' : '<span class="muted">—</span>';
     const obs = [v.completion_notes, v.sale_notes].filter(Boolean).map(esc).join('<br>') || '—';
     return `<tr><td style="white-space:nowrap">${fmtDate(v.scheduled_at)}</td><td>${esc(v.client_name)}</td>
