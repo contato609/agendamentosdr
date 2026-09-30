@@ -59,3 +59,11 @@ Abra https://agendamentosdr.sistemadevisitas.com/?demo para usar sem backend (da
 - **Visitas realizadas** tem as sub-abas *Compareceu*, *Não compareceu*, *Vendeu* e *Não vendeu*.
   Em *Compareceu*, os botões **Vendeu** (pede o VGV em R$) e **Não vendeu** (pede o motivo).
 - **Taxa de conversão** = vendas ÷ visitas comparecidas. **VGV vendido** soma o VGV das vendas do período.
+
+## Hierarquia de acesso
+
+- **Gestor (admin)**: vê e gerencia todas as visitas, produtos e a equipe; agenda para qualquer SDR.
+- **SDR**: vê só as visitas em que é o responsável, e todo agendamento que cria fica atribuído a ele.
+  Um SDR não vê as visitas nem os números dos outros SDRs.
+- A regra fica nas políticas do banco (`supabase/migrations/20260930000000_hierarquia_sdr.sql`),
+  então vale mesmo para quem tentar acessar os dados fora da tela.

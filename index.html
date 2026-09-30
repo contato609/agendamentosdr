@@ -364,7 +364,7 @@
     <!-- ── Dashboard ── -->
     <section class="page" id="page-dashboard">
       <div class="page-title">Dashboard</div>
-      <div class="page-sub">Indicadores de agendamento e comparecimento.</div>
+      <div class="page-sub" id="db-sub">Indicadores de agendamento e comparecimento.</div>
       <div class="filters">
         <select id="db-f-product"></select>
         <select id="db-f-sdr"></select>
@@ -395,7 +395,7 @@
         <div class="chart-wrap"><canvas id="db-chart" role="img" aria-label="Visitas agendadas e comparecidas por semana"></canvas></div>
       </div>
       <div class="card"><div class="card-title" style="margin-bottom:.75rem">Por produto</div><div class="table-wrap" id="db-by-product"></div></div>
-      <div class="card"><div class="card-title" style="margin-bottom:.75rem">Por SDR responsável</div><div class="table-wrap" id="db-by-sdr"></div></div>
+      <div class="card" id="db-by-sdr-card"><div class="card-title" style="margin-bottom:.75rem">Por SDR responsável</div><div class="table-wrap" id="db-by-sdr"></div></div>
       <div class="card">
         <div class="card-title" style="margin-bottom:.75rem">Próximas visitas presenciais</div>
         <div class="table-wrap" id="db-pres-list"></div>
@@ -527,9 +527,17 @@ function demoApi() {
     async signOut() { db.session = null; save(db); authCb(null); },
     async resetPassword() {},
     async profile(id) { return clone(db.users.find(u => u.id === id)); },
-    async profiles() { return clone(db.users).sort((a, b) => a.full_name.localeCompare(b.full_name)); },
+    async profiles() {
+      const me = db.users.find(u => u.id === db.session?.user.id);
+      const list = me?.role === 'admin' ? db.users : db.users.filter(u => u.id === me?.id);
+      return clone(list).sort((a, b) => a.full_name.localeCompare(b.full_name));
+    },
     async products() { return clone(db.products).sort((a, b) => a.name.localeCompare(b.name)); },
-    async visits() { return clone(db.visits).sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at)); },
+    async visits() {
+      const me = db.users.find(u => u.id === db.session?.user.id);
+      const list = me?.role === 'admin' ? db.visits : db.visits.filter(v => v.sdr_id === me?.id);
+      return clone(list).sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
+    },
     async createVisit(v) { const r = { ...v, id: uid(), status: 'agendada', created_by: db.session.user.id, created_at: new Date().toISOString() }; db.visits.push(r); save(db); return clone(r); },
     async updateVisit(id, patch) { const v = db.visits.find(x => x.id === id); Object.assign(v, patch); save(db); return clone(v); },
     async deleteVisit(id) { db.visits = db.visits.filter(x => x.id !== id); save(db); },
@@ -733,8 +741,14 @@ function fillFilters() {
     const ps = $(`${k}-f-product`), ss = $(`${k}-f-sdr`);
     const pv = ps.value, sv = ss.value;
     ps.innerHTML = prodOpts; ss.innerHTML = sdrOpts;
-    ps.value = pv; ss.value = sv;
+    ps.value = pv; ss.value = isAdmin() ? sv : '';
+    // SDR só enxerga as próprias visitas: o filtro por SDR não faz sentido para ele.
+    ss.hidden = !isAdmin();
   });
+  $('db-by-sdr-card').hidden = !isAdmin();
+  $('db-sub').textContent = isAdmin()
+    ? 'Indicadores de agendamento e comparecimento de toda a equipe.'
+    : 'Seus indicadores de agendamento, comparecimento e vendas.';
 }
 ['ag-f-product', 'ag-f-sdr', 're-f-product', 're-f-sdr', 'db-f-product', 'db-f-sdr', 'db-f-period']
   .forEach(id => $(id).addEventListener('change', render));
@@ -900,7 +914,9 @@ function openVisitModal({ product_id, date, visit }) {
       </div>
     </div>
     <div class="field"><label>SDR responsável</label>
-      <select name="sdr_id" required>${sdrs.map(p => `<option value="${esc(p.id)}" ${p.id === defaultSdr ? 'selected' : ''}>${esc(p.full_name)}</option>`).join('')}</select>
+      ${isAdmin()
+        ? `<select name="sdr_id" required>${sdrs.map(p => `<option value="${esc(p.id)}" ${p.id === defaultSdr ? 'selected' : ''}>${esc(p.full_name)}</option>`).join('')}</select>`
+        : `<input type="hidden" name="sdr_id" value="${esc(state.me.id)}"><input type="text" value="${esc(state.me.full_name)}" disabled>`}
     </div>
     <div class="field"><label>Observação</label><textarea name="notes" placeholder="Informações importantes para a visita">${esc(visit?.notes ?? '')}</textarea></div>
     <div class="modal-actions">
