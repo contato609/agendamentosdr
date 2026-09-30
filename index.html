@@ -593,7 +593,7 @@
   <main class="pt-wrap">
     <div id="pt-empty" class="card empty" hidden>Nenhum empreendimento liberado para o seu acesso ainda. Fale com a Digital Moon.</div>
     <div class="pt-toolbar" id="pt-toolbar">
-      <div class="pt-seg" id="pt-period"><button data-p="7">7 dias</button><button class="on" data-p="30">30 dias</button><button data-p="90">90 dias</button></div>
+      <div class="pt-seg" id="pt-period"><button class="on" data-p="all">Todo o período</button><button data-p="7">7 dias</button><button data-p="30">30 dias</button><button data-p="90">90 dias</button></div>
       <span id="pt-period-note"></span>
     </div>
     <div id="pt-geral">
@@ -1725,7 +1725,7 @@ $('admin-users').addEventListener('click', e => {
 // ══════════════════════════════════════════════════════════════════════════════
 // Portal do Cliente (somente leitura, sem dados de SDR)
 // ══════════════════════════════════════════════════════════════════════════════
-const pt = { products: [], visits: [], product: null, period: 30, tab: 'geral', month: startOfMonth(new Date()) };
+const pt = { products: [], visits: [], product: null, period: 'all', tab: 'geral', month: startOfMonth(new Date()) };
 let ptChart = null;
 
 async function enterPortal() {
@@ -1762,7 +1762,7 @@ $('pt-tabs').addEventListener('click', e => {
 });
 $('pt-period').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
-  pt.period = Number(b.dataset.p);
+  pt.period = b.dataset.p === 'all' ? 'all' : Number(b.dataset.p);
   $('pt-period').querySelectorAll('button').forEach(t => t.classList.toggle('on', t === b));
   renderPortal();
 });
@@ -1770,11 +1770,16 @@ $('pt-prev').addEventListener('click', () => { pt.month = new Date(pt.month.getF
 $('pt-next-m').addEventListener('click', () => { pt.month = new Date(pt.month.getFullYear(), pt.month.getMonth() + 1, 1); ptAgenda(); });
 
 const ptMine = () => pt.visits.filter(v => v.product_id === pt.product);
+// Período conta a partir de uma data, sem teto: uma visita marcada para frente que já recebeu
+// resultado (ex.: vendida antes do dia) continua aparecendo nas listas e no dashboard.
 function ptInPeriod(list) {
-  const now = new Date();
-  const from = new Date(now); from.setDate(from.getDate() - pt.period); from.setHours(0, 0, 0, 0);
-  $('pt-period-note').textContent = `${from.toLocaleDateString('pt-BR')} até hoje · visitas futuras aparecem em “Próximas visitas”`;
-  return list.filter(v => { const d = new Date(v.scheduled_at); return d >= from && d <= now; });
+  if (pt.period === 'all') {
+    $('pt-period-note').textContent = 'Todo o histórico do empreendimento, incluindo as visitas já marcadas para frente';
+    return list;
+  }
+  const from = new Date(); from.setDate(from.getDate() - pt.period); from.setHours(0, 0, 0, 0);
+  $('pt-period-note').textContent = `Desde ${from.toLocaleDateString('pt-BR')}, incluindo as visitas já marcadas para frente`;
+  return list.filter(v => new Date(v.scheduled_at) >= from);
 }
 
 function renderPortal() {
@@ -1792,7 +1797,7 @@ function renderPortal() {
   if (pt.tab === 'feedback') ptFeedback();
   if (pt.tab === 'realizadas') ptDone();
   if (pt.tab === 'vendas') ptSales();
-  $('pt-sales-count').textContent = ptMine().filter(v => v.status === 'realizada' && v.sale_status === 'vendeu').length;
+  $('pt-sales-count').textContent = ptInPeriod(ptMine()).filter(v => v.status === 'realizada' && v.sale_status === 'vendeu').length;
 }
 
 function ptGeral() {
@@ -1803,7 +1808,8 @@ function ptGeral() {
   const vgv = sales.reduce((a, v) => a + Number(v.vgv || 0), 0);
   const concl = shown.length + noShow;
   $('pk-ag').textContent = vs.length;
-  $('pk-ag-s').textContent = `${vs.filter(v => v.modality === 'presencial').length} presenciais`;
+  const future = vs.filter(v => ptOpen(v) && new Date(v.scheduled_at) >= now).length;
+  $('pk-ag-s').textContent = `${vs.filter(v => v.modality === 'presencial').length} presenciais · ${future} ainda por acontecer`;
   $('pk-co').textContent = shown.length;
   $('pk-co-s').textContent = `${noShow} não compareceram`;
   $('pk-sh').textContent = concl ? Math.round(shown.length / concl * 100) + '%' : '—';
