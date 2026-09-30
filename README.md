@@ -87,3 +87,11 @@ Abra https://agendamentosdr.sistemadevisitas.com/?demo para usar sem backend (da
   ao reagendar (botão **Reagendar** → nova data), ela volta para *Agendadas*.
 - O cliente grava pela função `client_feedback()`, que confere se a visita é de um empreendimento liberado.
   Requer `supabase/migrations/20260930020000_feedback_incorporador.sql`.
+
+## Exclusões (gestor)
+
+- **Visita**: botão *Excluir* em Visitas agendadas.
+- **Produto**: *Excluir* no card do produto ou em Administração.
+- **Usuário da equipe / cliente do portal**: *Excluir* em Administração. As visitas de um SDR apagado passam para
+  quem o gestor escolher. Requer a Edge Function `supabase/functions/delete-user` publicada.
+- Visita **vendida** sai de *Compareceu* e fica só em *Vendeu* (equipe) e em *Vendas* (portal do incorporador).

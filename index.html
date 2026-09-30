@@ -586,6 +586,7 @@
         <button class="pt-tab" data-tab="agenda">Agenda</button>
         <button class="pt-tab" data-tab="feedback">Visitas agendadas <span class="badge" id="pt-fb-count">0</span></button>
         <button class="pt-tab" data-tab="realizadas">Visitas realizadas</button>
+        <button class="pt-tab" data-tab="vendas">Vendas <span class="badge" id="pt-sales-count">0</span></button>
       </nav>
     </div>
   </header>
@@ -623,6 +624,11 @@
       <div class="card"><div class="card-header"><div><div class="card-title">Aguardando o seu feedback</div><div class="muted">A visita já aconteceu? Conte se vendeu, se não comprou ou devolva para a Digital Moon reagendar.</div></div></div><div id="pt-fb-wait"></div></div>
       <div class="card"><div class="card-header"><div class="card-title">Próximas visitas</div><span class="muted">também aceitam feedback, se a visita acontecer antes</span></div><div id="pt-fb-next"></div></div>
       <div class="card" id="pt-fb-back-card"><div class="card-header"><div class="card-title">Devolvidas para reagendamento</div><span class="muted">a equipe Digital Moon vai remarcar</span></div><div id="pt-fb-back"></div></div>
+    </div>
+    <div id="pt-vendas" hidden>
+      <div class="card"><div class="card-header"><div class="card-title">Vendas fechadas</div><span class="muted" id="pt-sales-total"></span></div>
+        <div class="table-wrap"><table><thead><tr><th>Data da visita</th><th>Cliente</th><th>VGV</th><th>Observação da venda</th></tr></thead><tbody id="pt-sales"></tbody></table></div>
+      </div>
     </div>
     <div id="pt-realizadas" hidden>
       <div class="card"><div class="card-header"><div class="card-title">Visitas concluídas</div><span class="muted">o que aconteceu em cada visita</span></div>
@@ -683,6 +689,16 @@ function supabaseApi() {
     // Feedback do incorporador: vendeu / nao_vendeu / reagendar (validado no banco).
     async clientFeedback(visitId, outcome, vgv, note) {
       must(await sb.rpc('client_feedback', { p_visit: visitId, p_outcome: outcome, p_vgv: vgv ?? null, p_note: note ?? null }));
+    },
+    // Exclusão de login: Edge Function `delete-user` (transfere as visitas e apaga o acesso).
+    async deleteUser(userId, transferTo) {
+      const { data, error } = await sb.functions.invoke('delete-user', { body: { user_id: userId, transfer_to: transferTo || null } });
+      if (error) {
+        let msg = data && data.error;
+        try { msg = msg || (await error.context?.json())?.error; } catch {}
+        throw new Error(msg || 'Não foi possível apagar. Confira se a função delete-user está publicada no Supabase.');
+      }
+      if (data && data.error) throw new Error(data.error);
     },
     // Criação de login: Edge Function `create-sdr` (usa a service role no servidor).
     async createUser(u) {
@@ -817,6 +833,15 @@ function demoApi() {
       db.visits = db.visits.filter(v => v.product_id !== id); db.products = db.products.filter(p => p.id !== id); save(db);
     },
     async updateProfile(id, patch) { const u = db.users.find(x => x.id === id); Object.assign(u, patch); save(db); return clone(u); },
+    async deleteUser(userId, transferTo) {
+      if (userId === db.session?.user.id) throw new Error('Você não pode apagar o seu próprio acesso.');
+      const linked = db.visits.filter(v => v.sdr_id === userId || v.created_by === userId);
+      if (linked.length && !transferTo) throw new Error('Este usuário tem visitas. Escolha para quem transferi-las.');
+      db.visits.forEach(v => { if (v.sdr_id === userId) v.sdr_id = transferTo; if (v.created_by === userId) v.created_by = transferTo; });
+      db.users = db.users.filter(u => u.id !== userId);
+      db.clientProducts = db.clientProducts.filter(c => c.client_id !== userId);
+      save(db);
+    },
     async createUser(u) {
       if (db.users.some(x => x.email === u.email.toLowerCase())) throw new Error('E-mail já cadastrado.');
       const r = { id: uid(), full_name: u.full_name, role: u.role, company: u.company || null, active: true, email: u.email.toLowerCase() };
@@ -1256,6 +1281,7 @@ function renderAgendadas() {
           ${late ? '' : `<button class="btn-sm" data-act="feedback" data-id="${esc(v.id)}" title="A visita já aconteceu: aguardar o retorno do cliente">Aguardando feedback</button>`}
           ${manual && !v.reschedule_requested && new Date(v.scheduled_at) >= now ? `<button class="btn-sm" data-act="unfeedback" data-id="${esc(v.id)}">Voltar p/ agendadas</button>` : ''}
           <button class="btn-sm" data-act="edit" data-id="${esc(v.id)}">${v.reschedule_requested ? 'Reagendar' : 'Editar'}</button>
+          ${isAdmin() ? `<button class="btn-sm btn-no" data-act="delete" data-id="${esc(v.id)}">Excluir</button>` : ''}
         </td>
       </tr>`;
     }).join('')}</tbody></table>`;
@@ -1266,6 +1292,7 @@ $('ag-table').addEventListener('click', async e => {
   if (b.dataset.act === 'edit') return openVisitModal({ visit: v });
   if (b.dataset.act === 'done') return openCompleteModal(v, 'realizada');
   if (b.dataset.act === 'noshow') return openCompleteModal(v, 'nao_compareceu');
+  if (b.dataset.act === 'delete') return openDeleteVisitModal(v);
   if (b.dataset.act === 'feedback' || b.dataset.act === 'unfeedback') {
     const toFeedback = b.dataset.act === 'feedback';
     b.disabled = true;
@@ -1276,6 +1303,19 @@ $('ag-table').addEventListener('click', async e => {
     } catch (err) { b.disabled = false; toast(errMsg(err)); }
   }
 });
+
+function openDeleteVisitModal(v) {
+  modal(`
+    <h2>Excluir visita?</h2>
+    <div class="sub">${esc(v.client_name)} · ${esc(productName(v.product_id))} · ${fmtDateTime(v.scheduled_at)}</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <p style="font-size:14px">A visita some da agenda, do portal do incorporador e do dashboard. Não dá para desfazer.</p>
+    <div class="modal-actions" style="margin-top:16px"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-danger" type="submit">Excluir visita</button></div>`,
+  async () => {
+    await api.deleteVisit(v.id);
+    toast('Visita excluída.'); await refresh();
+  });
+}
 
 function openCompleteModal(v, status) {
   const done = status === 'realizada';
@@ -1302,7 +1342,8 @@ function openCompleteModal(v, status) {
 function renderRealizadas() {
   const base = filtered('re');
   const groups = {
-    compareceu: base.filter(v => v.status === 'realizada'),
+    // Venda fecha o ciclo do lead: ele sai de "Compareceu" e fica só em "Vendeu".
+    compareceu: base.filter(v => v.status === 'realizada' && v.sale_status !== 'vendeu'),
     nao_compareceu: base.filter(v => v.status === 'nao_compareceu'),
     vendeu: base.filter(v => v.status === 'realizada' && v.sale_status === 'vendeu'),
     nao_vendeu: base.filter(v => v.status === 'realizada' && v.sale_status === 'nao_vendeu'),
@@ -1505,7 +1546,7 @@ function renderAdmin() {
   $('admin-users').innerHTML = `<table><tbody>${team().map(u => `<tr>
     <td>${esc(u.full_name)}<div class="muted">${u.role === 'admin' ? 'Gestor' : 'SDR'}</div></td>
     <td>${u.active !== false ? '<span class="pill pill-ok">Ativo</span>' : '<span class="pill pill-no">Inativo</span>'}</td>
-    <td class="actions"><button class="btn-sm" data-edit-user="${esc(u.id)}">Editar</button></td></tr>`).join('')}</tbody></table>`;
+    <td class="actions"><button class="btn-sm" data-edit-user="${esc(u.id)}">Editar</button>${u.id !== state.me.id ? `<button class="btn-sm btn-no" data-delete-user="${esc(u.id)}">Excluir</button>` : ''}</td></tr>`).join('')}</tbody></table>`;
 }
 
 // ── Clientes (Portal do Incorporador) ─────────────────────────────────────────
@@ -1519,7 +1560,7 @@ async function renderAdminClients() {
     return `<tr><td><b>${esc(c.full_name)}</b><div class="muted">${esc(c.company || '')} · ${esc(c.email || '')}</div></td>
       <td>${prods.length ? prods.map(n => `<span class="pill pill-presencial" style="margin:0 4px 4px 0">${esc(n)}</span>`).join('') : '<span class="muted">nenhum</span>'}</td>
       <td>${c.active !== false ? '<span class="pill pill-ok">Ativo</span>' : '<span class="pill pill-no">Inativo</span>'}</td>
-      <td class="actions"><button class="btn-sm" data-edit-client="${esc(c.id)}">Editar</button></td></tr>`;
+      <td class="actions"><button class="btn-sm" data-edit-client="${esc(c.id)}">Editar</button><button class="btn-sm btn-no" data-delete-client="${esc(c.id)}">Excluir</button></td></tr>`;
   }).join('')}</tbody></table>`;
 }
 function productChecks(selected) {
@@ -1527,6 +1568,28 @@ function productChecks(selected) {
   if (!list.length) return '<div class="muted">Cadastre um produto primeiro.</div>';
   return `<div class="prod-checks">${list.map(p => `<label><input type="checkbox" name="products" value="${esc(p.id)}" ${selected.includes(p.id) ? 'checked' : ''}> ${esc(p.name)}</label>`).join('')}</div>`;
 }
+// Apagar acesso: cliente sai direto; membro da equipe com visitas precisa passá-las para alguém.
+function openDeleteUserModal(u) {
+  if (!u) return;
+  const client = u.role === 'cliente';
+  const linked = client ? [] : state.visits.filter(v => v.sdr_id === u.id || v.created_by === u.id);
+  const heirs = team().filter(p => p.id !== u.id && p.active !== false);
+  modal(`
+    <h2>Apagar ${client ? 'cliente' : 'acesso'}?</h2>
+    <div class="sub">${esc(u.full_name)}${u.company ? ' · ' + esc(u.company) : ''} · ${esc(u.email || '')}</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <p style="font-size:14px;margin-bottom:12px">${client
+      ? 'O login é apagado e a pessoa perde o acesso ao Portal do Incorporador. As visitas do empreendimento continuam no sistema.'
+      : 'O login é apagado e a pessoa não entra mais no sistema. Não dá para desfazer.'}</p>
+    ${linked.length ? `<div class="field"><label>${linked.length} visita${linked.length === 1 ? '' : 's'} de ${esc(u.full_name)} ${linked.length === 1 ? 'passa' : 'passam'} para</label>
+      <select name="transfer_to" required>${heirs.map(p => `<option value="${esc(p.id)}" ${p.id === state.me.id ? 'selected' : ''}>${esc(p.full_name)}${p.role === 'admin' ? ' (gestor)' : ''}</option>`).join('')}</select></div>` : ''}
+    <div class="modal-actions" style="margin-top:16px"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-danger" type="submit">Apagar ${client ? 'cliente' : 'acesso'}</button></div>`,
+  async fd => {
+    await api.deleteUser(u.id, fd.get('transfer_to'));
+    toast(client ? 'Cliente apagado.' : 'Acesso apagado.'); await refresh();
+  });
+}
+
 $('add-client-btn').addEventListener('click', () => {
   modal(`
     <h2>Novo acesso de cliente</h2><div class="sub">O responsável pelo empreendimento entra no mesmo site e vê só o Portal do Incorporador.</div>
@@ -1549,6 +1612,8 @@ $('add-client-btn').addEventListener('click', () => {
   });
 });
 $('admin-clients').addEventListener('click', e => {
+  const del = e.target.closest('[data-delete-client]');
+  if (del) return openDeleteUserModal(profileById(del.dataset.deleteClient));
   const b = e.target.closest('[data-edit-client]'); if (!b) return;
   const c = profileById(b.dataset.editClient);
   const selected = clientLinks.filter(l => l.client_id === c.id).map(l => l.product_id);
@@ -1637,6 +1702,8 @@ $('add-user-btn').addEventListener('click', () => {
   });
 });
 $('admin-users').addEventListener('click', e => {
+  const del = e.target.closest('[data-delete-user]');
+  if (del) return openDeleteUserModal(profileById(del.dataset.deleteUser));
   const b = e.target.closest('[data-edit-user]'); if (!b) return;
   const u = profileById(b.dataset.editUser);
   modal(`
@@ -1716,7 +1783,7 @@ function renderPortal() {
   $('pt-empty').hidden = !none;
   $('pt-prod').textContent = p ? p.name : 'Portal do Incorporador';
   $('pt-loc').textContent = p?.location || '';
-  ['geral', 'agenda', 'feedback', 'realizadas'].forEach(t => { $('pt-' + t).hidden = none || pt.tab !== t; });
+  ['geral', 'agenda', 'feedback', 'realizadas', 'vendas'].forEach(t => { $('pt-' + t).hidden = none || pt.tab !== t; });
   $('pt-toolbar').hidden = none || pt.tab === 'agenda' || pt.tab === 'feedback';
   $('pt-fb-count').textContent = ptMine().filter(v => ptOpen(v) && !v.reschedule_requested && new Date(v.scheduled_at) < new Date()).length;
   if (none) return;
@@ -1724,6 +1791,8 @@ function renderPortal() {
   if (pt.tab === 'agenda') ptAgenda();
   if (pt.tab === 'feedback') ptFeedback();
   if (pt.tab === 'realizadas') ptDone();
+  if (pt.tab === 'vendas') ptSales();
+  $('pt-sales-count').textContent = ptMine().filter(v => v.status === 'realizada' && v.sale_status === 'vendeu').length;
 }
 
 function ptGeral() {
@@ -1858,7 +1927,8 @@ function openClientFeedback(v, outcome) {
 
 function ptDone() {
   const now = new Date();
-  const vs = ptInPeriod(ptMine()).filter(v => v.status !== 'agendada' || new Date(v.scheduled_at) < now).reverse();
+  // Vendidas fecham o ciclo: aparecem só na aba Vendas.
+  const vs = ptInPeriod(ptMine()).filter(v => (v.status !== 'agendada' || new Date(v.scheduled_at) < now) && v.sale_status !== 'vendeu').reverse();
   $('pt-done').innerHTML = vs.length ? vs.map(v => {
     const att = v.status === 'realizada' ? '<span class="pill pill-ok">Sim</span>' : v.status === 'nao_compareceu' ? '<span class="pill pill-no">Não</span>'
       : v.reschedule_requested ? '<span class="pill pill-no">Devolvida p/ reagendar</span>' : '<span class="pill pill-late">Aguardando retorno</span>';
@@ -1868,6 +1938,15 @@ function ptDone() {
       <td><span class="pill pill-${v.modality}">${v.modality === 'presencial' ? 'Presencial' : 'Online'}</span></td>
       <td>${att}</td><td>${res}</td><td class="money">${v.sale_status === 'vendeu' ? brl2(v.vgv) : '—'}</td><td style="color:var(--text-secondary)">${obs}</td></tr>`;
   }).join('') : '<tr><td colspan="7" class="empty">Nenhuma visita concluída no período.</td></tr>';
+}
+
+function ptSales() {
+  const vs = ptInPeriod(ptMine()).filter(v => v.status === 'realizada' && v.sale_status === 'vendeu').reverse();
+  const total = vs.reduce((a, v) => a + Number(v.vgv || 0), 0);
+  $('pt-sales-total').textContent = vs.length ? `${vs.length} venda${vs.length === 1 ? '' : 's'} · ${brl(total)} em VGV` : '';
+  $('pt-sales').innerHTML = vs.length ? vs.map(v => `<tr><td style="white-space:nowrap">${fmtDate(v.scheduled_at)}</td><td><b>${esc(v.client_name)}</b></td>
+    <td class="money"><b>${brl2(v.vgv)}</b></td><td style="color:var(--text-secondary)">${esc(v.sale_notes || '—')}</td></tr>`).join('')
+    : '<tr><td colspan="4" class="empty">Nenhuma venda no período.</td></tr>';
 }
 
 boot();
