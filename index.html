@@ -182,6 +182,11 @@
 
   .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
   .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+  @media (max-width: 720px) { .grid3 { grid-template-columns: 1fr; } }
+  .pill-neg { background: #e9ecf8; color: #2f3f73; }
+  :root[data-theme="dark"] .pill-neg { background: rgba(111,134,198,.18); color: #b9c5ea; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill-neg { background: rgba(111,134,198,.18); color: #b9c5ea; } }
   @media (max-width: 720px) {
     .grid4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
     .app-header { padding: 10px 16px; gap: 10px; }
@@ -369,7 +374,7 @@
   .pt-seg { display: inline-flex; background: var(--bg-primary); border: 1px solid var(--border-md); border-radius: 999px; padding: 3px; }
   .pt-seg button { border: 0; background: transparent; color: var(--text-secondary); font-size: 12.5px; font-weight: 500; padding: 5px 12px; border-radius: 999px; cursor: pointer; font-family: inherit; }
   .pt-seg button.on { background: var(--night); color: var(--gold); }
-  .pt-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .pt-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
   .pt-two { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; }
   @media (max-width: 980px) { .pt-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pt-kpis .kpi.hero { grid-column: 1 / -1; } .pt-two { grid-template-columns: 1fr; } }
   .funnel { display: grid; gap: 12px; }
@@ -428,6 +433,7 @@
       <button class="nav-btn active" data-tab="produtos">Produtos</button>
       <button class="nav-btn" data-tab="agendadas">Visitas agendadas <span class="badge" id="badge-agendadas">0</span></button>
       <button class="nav-btn" data-tab="realizadas">Visitas realizadas</button>
+      <button class="nav-btn" data-tab="negociacao">Negociação <span class="badge" id="badge-neg">0</span></button>
       <button class="nav-btn" data-tab="dashboard">Dashboard</button>
       <button class="nav-btn" data-tab="admin" id="nav-admin" hidden>Administração</button>
     </nav>
@@ -488,7 +494,7 @@
     <!-- ── Visitas realizadas ── -->
     <section class="page" id="page-realizadas">
       <div class="page-title">Visitas realizadas</div>
-      <div class="page-sub">Registre se o cliente comprou: “Vendeu” pede o VGV gerado, “Não vendeu” pede o motivo.</div>
+      <div class="page-sub">Registre o resultado: “Vendeu” pede o VGV, “Não vendeu” pede o motivo e “Negociação” leva o lead para a mesa.</div>
       <div class="subtabs" id="re-subtabs">
         <button class="subtab active" data-sub="compareceu">Compareceu <span class="badge" id="re-count-compareceu">0</span></button>
         <button class="subtab" data-sub="nao_compareceu">Não compareceu <span class="badge" id="re-count-nao_compareceu">0</span></button>
@@ -500,6 +506,17 @@
         <select id="re-f-sdr"></select>
       </div>
       <div class="card"><div class="table-wrap" id="re-table"></div></div>
+    </section>
+
+    <!-- ── Negociação ── -->
+    <section class="page" id="page-negociacao">
+      <div class="page-title">Negociação</div>
+      <div class="page-sub">Leads que compareceram e foram para a mesa: proposta e contraproposta. Feche como vendeu, não vendeu ou devolva para reagendar.</div>
+      <div class="filters">
+        <select id="ng-f-product"></select>
+        <select id="ng-f-sdr"></select>
+      </div>
+      <div class="card"><div class="table-wrap" id="ng-table"></div></div>
     </section>
 
     <!-- ── Dashboard ── -->
@@ -527,6 +544,11 @@
         <div class="kpi"><div class="lbl">Total de vendas</div><div class="val" id="k-sales">0</div><div class="sub" id="k-sales-sub"></div></div>
         <div class="kpi hero"><div class="lbl">VGV vendido</div><div class="val money" id="k-vgv">R$ 0</div><div class="sub" id="k-vgv-sub"></div></div>
         <div class="kpi"><div class="lbl">Taxa de conversão</div><div class="val" id="k-conv">—</div><div class="sub" id="k-conv-sub"></div></div>
+      </div>
+      <div class="grid3" style="margin-bottom:1rem">
+        <div class="kpi"><div class="lbl">Em negociação agora</div><div class="val" id="k-neg-now">0</div><div class="sub">leads na mesa sem resultado</div></div>
+        <div class="kpi"><div class="lbl">Foram para a mesa</div><div class="val" id="k-neg">0</div><div class="sub" id="k-neg-sub"></div></div>
+        <div class="kpi"><div class="lbl">Conversão da mesa</div><div class="val" id="k-neg-conv">—</div><div class="sub" id="k-neg-conv-sub"></div></div>
       </div>
       <div class="card">
         <div class="card-header">
@@ -586,6 +608,7 @@
         <button class="pt-tab" data-tab="agenda">Agenda</button>
         <button class="pt-tab" data-tab="feedback">Visitas agendadas <span class="badge" id="pt-fb-count">0</span></button>
         <button class="pt-tab" data-tab="realizadas">Visitas realizadas</button>
+        <button class="pt-tab" data-tab="negociacao">Negociação <span class="badge" id="pt-neg-count">0</span></button>
         <button class="pt-tab" data-tab="vendas">Vendas <span class="badge" id="pt-sales-count">0</span></button>
       </nav>
     </div>
@@ -601,6 +624,7 @@
         <div class="kpi"><div class="lbl">Visitas agendadas</div><div class="val" id="pk-ag">0</div><div class="sub" id="pk-ag-s"></div></div>
         <div class="kpi"><div class="lbl">Compareceram</div><div class="val" id="pk-co">0</div><div class="sub" id="pk-co-s"></div></div>
         <div class="kpi"><div class="lbl">Taxa de show up</div><div class="val" id="pk-sh">—</div><div class="sub">das visitas já concluídas</div></div>
+        <div class="kpi"><div class="lbl">Foram para a mesa</div><div class="val" id="pk-neg">0</div><div class="sub" id="pk-neg-s"></div></div>
         <div class="kpi"><div class="lbl">Vendas</div><div class="val" id="pk-ve">0</div><div class="sub" id="pk-ve-s"></div></div>
         <div class="kpi hero"><div class="lbl">VGV gerado</div><div class="val money" id="pk-vgv">R$ 0</div><div class="sub" id="pk-vgv-s"></div></div>
       </div>
@@ -625,6 +649,9 @@
       <div class="card"><div class="card-header"><div class="card-title">Próximas visitas</div><span class="muted">também aceitam feedback, se a visita acontecer antes</span></div><div id="pt-fb-next"></div></div>
       <div class="card" id="pt-fb-back-card"><div class="card-header"><div class="card-title">Devolvidas para reagendamento</div><span class="muted">a equipe Digital Moon vai remarcar</span></div><div id="pt-fb-back"></div></div>
     </div>
+    <div id="pt-negociacao" hidden>
+      <div class="card"><div class="card-header"><div><div class="card-title">Em negociação</div><div class="muted">Leads na mesa: proposta e contraproposta. Feche como vendeu, não comprou ou devolva para reagendar.</div></div></div><div id="pt-neg"></div></div>
+    </div>
     <div id="pt-vendas" hidden>
       <div class="card"><div class="card-header"><div class="card-title">Vendas fechadas</div><span class="muted" id="pt-sales-total"></span></div>
         <div class="table-wrap"><table><thead><tr><th>Data da visita</th><th>Cliente</th><th>VGV</th><th>Observação da venda</th></tr></thead><tbody id="pt-sales"></tbody></table></div>
@@ -632,7 +659,7 @@
     </div>
     <div id="pt-realizadas" hidden>
       <div class="card"><div class="card-header"><div class="card-title">Visitas concluídas</div><span class="muted">o que aconteceu em cada visita</span></div>
-        <div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Modalidade</th><th>Compareceu</th><th>Resultado</th><th>VGV</th><th>Observação</th></tr></thead><tbody id="pt-done"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Modalidade</th><th>Compareceu</th><th>Resultado</th><th>Observação</th></tr></thead><tbody id="pt-done"></tbody></table></div>
       </div>
     </div>
   </main>
@@ -714,7 +741,7 @@ function supabaseApi() {
 // Camada de dados — Demonstração (localStorage)
 // ══════════════════════════════════════════════════════════════════════════════
 function demoApi() {
-  const KEY = 'moon-visitas-demo-v4';
+  const KEY = 'moon-visitas-demo-v5';
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };
   const save = db => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} };
@@ -790,8 +817,9 @@ function demoApi() {
       if (me?.role !== 'cliente' || me.active === false) return [];
       const allowed = db.clientProducts.filter(c => c.client_id === me.id).map(c => c.product_id);
       return db.visits.filter(v => allowed.includes(v.product_id))
-        .map(({ id, product_id, client_name, scheduled_at, modality, status, notes, completion_notes, sale_status, vgv, sale_notes, reschedule_requested, reschedule_note, feedback_source }) =>
-          ({ id, product_id, client_name, scheduled_at, modality, status, notes, completion_notes, sale_status, vgv, sale_notes, reschedule_requested: !!reschedule_requested, reschedule_note: reschedule_note ?? null, feedback_source: feedback_source ?? null }))
+        .map(({ id, product_id, client_name, scheduled_at, modality, status, notes, completion_notes, sale_status, vgv, sale_notes, reschedule_requested, reschedule_note, feedback_source, negotiation_at, negotiation_notes, negotiated }) =>
+          ({ id, product_id, client_name, scheduled_at, modality, status, notes, completion_notes, sale_status, vgv, sale_notes, reschedule_requested: !!reschedule_requested, reschedule_note: reschedule_note ?? null, feedback_source: feedback_source ?? null,
+             negotiation_at: negotiation_at ?? null, negotiation_notes: negotiation_notes ?? null, negotiated: !!negotiated }))
         .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
     },
     // Mesmas regras da função client_feedback() do banco.
@@ -810,9 +838,14 @@ function demoApi() {
           completion_notes: v.completion_notes || 'Comparecimento confirmado pelo incorporador.',
           sale_status: outcome, vgv: outcome === 'vendeu' ? Math.round(vgv * 100) / 100 : null, sale_notes: note2,
           sale_at: new Date().toISOString(), feedback_source: 'cliente', reschedule_requested: false });
+      } else if (outcome === 'negociacao') {
+        if (v.status === 'nao_compareceu' || v.sale_status || inNegotiation(v)) throw new Error('Esta visita não pode ir para negociação.');
+        Object.assign(v, { status: 'realizada', completed_at: v.completed_at || new Date().toISOString(),
+          completion_notes: v.completion_notes || 'Comparecimento confirmado pelo incorporador.',
+          negotiation_at: new Date().toISOString(), negotiation_notes: note2, negotiated: true, feedback_source: 'cliente', reschedule_requested: false });
       } else if (outcome === 'reagendar') {
-        if (!['agendada', 'aguardando_feedback'].includes(v.status)) throw new Error('Só visitas ainda em aberto podem voltar para reagendamento.');
-        Object.assign(v, { status: 'aguardando_feedback', reschedule_requested: true, reschedule_note: note2, feedback_source: 'cliente' });
+        if (!(['agendada', 'aguardando_feedback'].includes(v.status) || inNegotiation(v))) throw new Error('Só visitas em aberto ou em negociação podem voltar para reagendamento.');
+        Object.assign(v, { status: 'aguardando_feedback', negotiation_at: null, reschedule_requested: true, reschedule_note: note2, feedback_source: 'cliente' });
       } else throw new Error('Opção de feedback inválida.');
       save(db);
     },
@@ -889,6 +922,8 @@ function parseBRL(str) {
   return Number.isFinite(n) ? n : NaN;
 }
 // Visita agendada cuja data já passou e ainda não recebeu baixa.
+// Em negociação: compareceu, foi para a mesa e ainda não tem resultado de venda.
+const inNegotiation = v => v.status === 'realizada' && !v.sale_status && !!v.negotiation_at;
 // Visita em aberto: agendada ou movida manualmente para "aguardando feedback".
 const isOpen = v => v.status === 'agendada' || v.status === 'aguardando_feedback';
 // Aguardando feedback: movida manualmente, ou agendada cuja data já passou sem baixa.
@@ -906,6 +941,7 @@ function errMsg(e) {
   if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
   if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail antes de entrar.';
   if (/visits_status_check/i.test(m)) return 'O banco ainda não aceita "aguardando feedback". Rode o SQL 20260929030000_aguardando_feedback.sql no Supabase.';
+  if (/negotiation_at|negotiated|negotiation_notes/i.test(m)) return 'O banco ainda não tem a etapa de Negociação. Rode o SQL 20261001000000_negociacao.sql no Supabase.';
   if (/client_feedback|reschedule_requested|feedback_source/i.test(m)) return 'O banco ainda não tem o feedback do incorporador. Rode o SQL 20260930020000_feedback_incorporador.sql no Supabase.';
   if (/client_visits|client_products|profiles_role_check/i.test(m)) return 'O banco ainda não tem o Portal do Cliente. Rode o SQL 20260930010000_portal_cliente.sql no Supabase.';
   if (/schema cache/i.test(m)) return 'O banco está desatualizado. Rode os SQLs novos da pasta supabase/migrations no Supabase.';
@@ -1030,14 +1066,15 @@ async function refresh() {
 function render() {
   $('badge-agendadas').textContent = state.visits.filter(isOpen).length;
   $('badge-agendadas').title = `${state.visits.filter(v => isAwaitingFeedback(v)).length} aguardando feedback`;
-  ({ produtos: renderProducts, agendadas: renderAgendadas, realizadas: renderRealizadas, dashboard: renderDashboard, admin: renderAdmin })[state.tab]?.();
+  $('badge-neg').textContent = state.visits.filter(inNegotiation).length;
+  ({ produtos: renderProducts, agendadas: renderAgendadas, realizadas: renderRealizadas, negociacao: renderNegociacao, dashboard: renderDashboard, admin: renderAdmin })[state.tab]?.();
 }
 
 // ── Filtros compartilhados ────────────────────────────────────────────────────
 function fillFilters() {
   const prodOpts = '<option value="">Todos os produtos</option>' + state.products.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
   const sdrOpts = '<option value="">Todos os SDRs</option>' + team().map(p => `<option value="${esc(p.id)}">${esc(p.full_name)}</option>`).join('');
-  ['ag', 're', 'db'].forEach(k => {
+  ['ag', 're', 'ng', 'db'].forEach(k => {
     const ps = $(`${k}-f-product`), ss = $(`${k}-f-sdr`);
     const pv = ps.value, sv = ss.value;
     ps.innerHTML = prodOpts; ss.innerHTML = sdrOpts;
@@ -1050,7 +1087,7 @@ function fillFilters() {
     ? 'Indicadores de agendamento e comparecimento de toda a equipe.'
     : 'Seus indicadores de agendamento, comparecimento e vendas.';
 }
-['ag-f-product', 'ag-f-sdr', 're-f-product', 're-f-sdr', 'db-f-product', 'db-f-sdr', 'db-f-period']
+['ag-f-product', 'ag-f-sdr', 're-f-product', 're-f-sdr', 'ng-f-product', 'ng-f-sdr', 'db-f-product', 'db-f-sdr', 'db-f-period']
   .forEach(id => $(id).addEventListener('change', render));
 function bindSubtabs(id, key) {
   $(id).addEventListener('click', e => {
@@ -1270,8 +1307,8 @@ function renderAgendadas() {
       const manual = v.status === 'aguardando_feedback';
       const p = productById(v.product_id);
       return `<tr>
-        <td>${fmtDateTime(v.scheduled_at)} ${v.reschedule_requested ? '<span class="pill pill-no">reagendar · pedido do incorporador</span>' : late ? '<span class="pill pill-late">aguardando feedback</span>' : ''}</td>
-        <td>${esc(v.client_name)}${v.notes ? `<div class="muted">${esc(v.notes)}</div>` : ''}${v.reschedule_requested && v.reschedule_note ? `<div class="muted"><b>Incorporador:</b> ${esc(v.reschedule_note)}</div>` : ''}</td>
+        <td>${fmtDateTime(v.scheduled_at)} ${v.reschedule_requested ? `<span class="pill pill-no">reagendar · ${v.feedback_source === 'cliente' ? 'pedido do incorporador' : 'voltou da negociação'}</span>` : late ? '<span class="pill pill-late">aguardando feedback</span>' : ''}</td>
+        <td>${esc(v.client_name)}${v.notes ? `<div class="muted">${esc(v.notes)}</div>` : ''}${v.reschedule_requested && v.reschedule_note ? `<div class="muted"><b>${v.feedback_source === 'cliente' ? 'Incorporador' : 'Recado'}:</b> ${esc(v.reschedule_note)}</div>` : ''}</td>
         <td><span class="dot" style="background:${esc(p?.color || '#888')}"></span>${esc(productName(v.product_id))}</td>
         <td><span class="pill pill-${v.modality}">${v.modality === 'presencial' ? 'Presencial' : 'Online'}</span></td>
         <td>${esc(sdrName(v.sdr_id))}</td>
@@ -1343,7 +1380,8 @@ function renderRealizadas() {
   const base = filtered('re');
   const groups = {
     // Venda fecha o ciclo do lead: ele sai de "Compareceu" e fica só em "Vendeu".
-    compareceu: base.filter(v => v.status === 'realizada' && v.sale_status !== 'vendeu'),
+    // Quem foi para a mesa fica na aba Negociação até ter resultado.
+    compareceu: base.filter(v => v.status === 'realizada' && v.sale_status !== 'vendeu' && !inNegotiation(v)),
     nao_compareceu: base.filter(v => v.status === 'nao_compareceu'),
     vendeu: base.filter(v => v.status === 'realizada' && v.sale_status === 'vendeu'),
     nao_vendeu: base.filter(v => v.status === 'realizada' && v.sale_status === 'nao_vendeu'),
@@ -1355,11 +1393,13 @@ function renderRealizadas() {
 
   const result = v => {
     const via = v.feedback_source === 'cliente' ? '<div class="muted">via incorporador</div>' : '';
-    if (v.sale_status === 'vendeu') return `<span class="pill pill-sale money">Vendeu · ${brl(v.vgv)}</span>${via}`;
-    if (v.sale_status === 'nao_vendeu') return `<span class="pill pill-no">Não vendeu</span>${via}`;
+    const mesa = v.negotiated ? '<div class="muted">passou pela mesa</div>' : '';
+    if (v.sale_status === 'vendeu') return `<span class="pill pill-sale money">Vendeu · ${brl(v.vgv)}</span>${via}${mesa}`;
+    if (v.sale_status === 'nao_vendeu') return `<span class="pill pill-no">Não vendeu</span>${via}${mesa}`;
     return `<div style="display:flex;gap:6px;flex-wrap:wrap">
       <button class="btn-sm btn-ok" data-sale="vendeu" data-id="${esc(v.id)}">Vendeu</button>
-      <button class="btn-sm btn-no" data-sale="nao_vendeu" data-id="${esc(v.id)}">Não vendeu</button></div>`;
+      <button class="btn-sm btn-no" data-sale="nao_vendeu" data-id="${esc(v.id)}">Não vendeu</button>
+      <button class="btn-sm" data-sale="negociacao" data-id="${esc(v.id)}">Negociação</button></div>`;
   };
   const cols = {
     compareceu: ['Observação da visita', v => esc(v.completion_notes || '—'), 'Resultado', result],
@@ -1385,7 +1425,10 @@ function renderRealizadas() {
 }
 $('re-table').addEventListener('click', async e => {
   const sale = e.target.closest('[data-sale]');
-  if (sale) return openSaleModal(state.visits.find(x => x.id === sale.dataset.id), sale.dataset.sale);
+  if (sale) {
+    const v = state.visits.find(x => x.id === sale.dataset.id);
+    return sale.dataset.sale === 'negociacao' ? openNegotiationModal(v) : openSaleModal(v, sale.dataset.sale);
+  }
   const undoSale = e.target.closest('[data-undo-sale]');
   if (undoSale) {
     if (!confirm('Apagar o resultado da venda desta visita?')) return;
@@ -1399,6 +1442,62 @@ $('re-table').addEventListener('click', async e => {
     await api.updateVisit(b.dataset.undo, { status: 'agendada', completion_notes: null, completed_at: null });
     await refresh();
   } catch (err) { toast(errMsg(err)); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Aba Negociação (equipe)
+// ══════════════════════════════════════════════════════════════════════════════
+function openNegotiationModal(v) {
+  if (!v) return;
+  modal(`
+    <h2>Enviar para negociação</h2>
+    <div class="sub">${esc(v.client_name)} · ${esc(productName(v.product_id))} · ${fmtDate(v.scheduled_at)}</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">O lead sai de “Compareceu” e vai para a aba Negociação até virar venda, não venda ou reagendamento.</p>
+    <div class="field"><label>Proposta / condições (opcional)</label><textarea name="note" placeholder="Ex.: proposta de 20% de entrada, aguardando contraproposta"></textarea></div>
+    <div class="modal-actions"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-primary" type="submit">Enviar para negociação</button></div>`,
+  async fd => {
+    await api.updateVisit(v.id, { negotiation_at: new Date().toISOString(), negotiation_notes: fd.get('note').trim() || null, negotiated: true, feedback_source: 'equipe' });
+    toast('Lead enviado para a Negociação.'); await refresh();
+  });
+}
+function openReturnModal(v) {
+  if (!v) return;
+  modal(`
+    <h2>Devolver para reagendar</h2>
+    <div class="sub">${esc(v.client_name)} · ${esc(productName(v.product_id))}</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">O lead volta para Visitas agendadas → Aguardando feedback, marcado para reagendar com o SDR responsável. A passagem pela mesa continua contando no dashboard.</p>
+    <div class="field"><label>Recado (opcional)</label><textarea name="note" placeholder="Ex.: cliente quer voltar ao decorado com a esposa"></textarea></div>
+    <div class="modal-actions"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-primary" type="submit">Devolver para reagendar</button></div>`,
+  async fd => {
+    await api.updateVisit(v.id, { status: 'aguardando_feedback', negotiation_at: null, reschedule_requested: true, reschedule_note: fd.get('note').trim() || null, feedback_source: 'equipe' });
+    toast('Lead devolvido para reagendamento.'); await refresh();
+  });
+}
+function renderNegociacao() {
+  const rows = filtered('ng').filter(inNegotiation).sort((a, b) => a.negotiation_at.localeCompare(b.negotiation_at));
+  if (!rows.length) { $('ng-table').innerHTML = '<div class="empty">Nenhum lead em negociação. Em Visitas realizadas → Compareceu, use o botão “Negociação”.</div>'; return; }
+  const now = Date.now();
+  $('ng-table').innerHTML = `<table>
+    <thead><tr><th>Na mesa desde</th><th>Cliente</th><th>Proposta / condições</th><th>Produto</th><th>SDR</th><th></th></tr></thead>
+    <tbody>${rows.map(v => { const days = Math.floor((now - new Date(v.negotiation_at)) / 86400000); return `<tr>
+      <td style="white-space:nowrap">${fmtDate(v.negotiation_at)}<div class="muted">${days === 0 ? 'hoje' : days + ' dia' + (days === 1 ? '' : 's')} · visita ${fmtDate(v.scheduled_at)}</div></td>
+      <td>${esc(v.client_name)}${v.feedback_source === 'cliente' ? '<div class="muted">via incorporador</div>' : ''}</td>
+      <td>${esc(v.negotiation_notes || '—')}</td>
+      <td class="muted">${esc(productName(v.product_id))}</td>
+      <td class="muted">${esc(sdrName(v.sdr_id))}</td>
+      <td class="actions">
+        <button class="btn-sm btn-ok" data-ng="vendeu" data-id="${esc(v.id)}">Vendeu</button>
+        <button class="btn-sm btn-no" data-ng="nao_vendeu" data-id="${esc(v.id)}">Não vendeu</button>
+        <button class="btn-sm" data-ng="reagendar" data-id="${esc(v.id)}">Devolver p/ reagendar</button>
+      </td></tr>`; }).join('')}</tbody></table>`;
+}
+$('ng-table').addEventListener('click', e => {
+  const b = e.target.closest('[data-ng]'); if (!b) return;
+  const v = state.visits.find(x => x.id === b.dataset.id); if (!v) return;
+  if (b.dataset.ng === 'reagendar') return openReturnModal(v);
+  openSaleModal(v, b.dataset.ng);
 });
 
 function openSaleModal(v, outcome) {
@@ -1470,10 +1569,20 @@ function renderDashboard() {
   $('k-conv').textContent = conv === null ? '—' : conv + '%';
   $('k-conv-sub').textContent = shown ? `${sales.length} vendas de ${shown} comparecidas` : 'sem visitas comparecidas';
 
+  const negotiated = vs.filter(v => v.negotiated);
+  const negClosed = negotiated.filter(v => v.sale_status);
+  const negSold = negotiated.filter(v => v.sale_status === 'vendeu');
+  $('k-neg-now').textContent = vs.filter(inNegotiation).length;
+  $('k-neg').textContent = negotiated.length;
+  $('k-neg-sub').textContent = shown ? `${Math.round(negotiated.length / shown * 100)}% das comparecidas` : 'sem visitas comparecidas';
+  $('k-neg-conv').textContent = negClosed.length ? Math.round(negSold.length / negClosed.length * 100) + '%' : '—';
+  $('k-neg-conv-sub').textContent = negClosed.length ? `${negSold.length} vendas de ${negClosed.length} negociações encerradas` : 'nenhuma negociação encerrada';
+
   const group = (key, label) => {
     const m = {};
     vs.forEach(v => {
-      const g = (m[v[key]] ||= { total: 0, shown: 0, concl: 0, sales: 0, vgv: 0 });
+      const g = (m[v[key]] ||= { total: 0, shown: 0, concl: 0, sales: 0, vgv: 0, neg: 0 });
+      if (v.negotiated) g.neg++;
       g.total++;
       if (v.status === 'realizada') g.shown++;
       if (v.status === 'realizada' || v.status === 'nao_compareceu') g.concl++;
@@ -1481,11 +1590,11 @@ function renderDashboard() {
     });
     const rows = Object.entries(m).sort((a, b) => b[1].total - a[1].total);
     if (!rows.length) return '<div class="empty">Sem dados para o filtro.</div>';
-    return `<table><thead><tr><th>${label}</th><th>Agend.</th><th>Compar.</th><th>Show up</th><th>Vendas</th><th>Conv.</th><th>VGV</th></tr></thead><tbody>${rows.map(([id, g]) => {
+    return `<table><thead><tr><th>${label}</th><th>Agend.</th><th>Compar.</th><th>Show up</th><th>Mesa</th><th>Vendas</th><th>Conv.</th><th>VGV</th></tr></thead><tbody>${rows.map(([id, g]) => {
       const r = g.concl ? Math.round(g.shown / g.concl * 100) : null;
       return `<tr><td>${esc(key === 'product_id' ? productName(id) : sdrName(id))}</td><td>${g.total}</td><td>${g.shown}</td>
         <td><div style="display:flex;align-items:center;gap:8px"><div class="bar-track" style="flex:1"><div class="bar-fill" style="width:${r ?? 0}%"></div></div><span>${r === null ? '—' : r + '%'}</span></div></td>
-        <td>${g.sales}</td><td>${g.shown ? Math.round(g.sales / g.shown * 100) + '%' : '—'}</td><td class="money">${brl(g.vgv)}</td></tr>`;
+        <td>${g.neg}</td><td>${g.sales}</td><td>${g.shown ? Math.round(g.sales / g.shown * 100) + '%' : '—'}</td><td class="money">${brl(g.vgv)}</td></tr>`;
     }).join('')}</tbody></table>`;
   };
   $('db-by-product').innerHTML = group('product_id', 'Produto');
@@ -1788,8 +1897,9 @@ function renderPortal() {
   $('pt-empty').hidden = !none;
   $('pt-prod').textContent = p ? p.name : 'Portal do Incorporador';
   $('pt-loc').textContent = p?.location || '';
-  ['geral', 'agenda', 'feedback', 'realizadas', 'vendas'].forEach(t => { $('pt-' + t).hidden = none || pt.tab !== t; });
-  $('pt-toolbar').hidden = none || pt.tab === 'agenda' || pt.tab === 'feedback';
+  ['geral', 'agenda', 'feedback', 'realizadas', 'negociacao', 'vendas'].forEach(t => { $('pt-' + t).hidden = none || pt.tab !== t; });
+  $('pt-toolbar').hidden = none || pt.tab === 'agenda' || pt.tab === 'feedback' || pt.tab === 'negociacao';
+  $('pt-neg-count').textContent = ptMine().filter(inNegotiation).length;
   $('pt-fb-count').textContent = ptMine().filter(v => ptOpen(v) && !v.reschedule_requested && new Date(v.scheduled_at) < new Date()).length;
   if (none) return;
   if (pt.tab === 'geral') ptGeral();
@@ -1797,6 +1907,7 @@ function renderPortal() {
   if (pt.tab === 'feedback') ptFeedback();
   if (pt.tab === 'realizadas') ptDone();
   if (pt.tab === 'vendas') ptSales();
+  if (pt.tab === 'negociacao') ptNegotiation();
   $('pt-sales-count').textContent = ptInPeriod(ptMine()).filter(v => v.status === 'realizada' && v.sale_status === 'vendeu').length;
 }
 
@@ -1817,9 +1928,12 @@ function ptGeral() {
   $('pk-ve-s').textContent = shown.length ? `${Math.round(sales.length / shown.length * 100)}% de conversão` : 'sem visitas concluídas';
   $('pk-vgv').textContent = brl(vgv);
   $('pk-vgv-s').textContent = sales.length ? `ticket médio ${brl(vgv / sales.length)}` : 'nenhuma venda no período';
+  const negotiated = vs.filter(v => v.negotiated);
+  $('pk-neg').textContent = negotiated.length;
+  $('pk-neg-s').textContent = `${vs.filter(inNegotiation).length} na mesa agora${shown.length ? ' · ' + Math.round(negotiated.length / shown.length * 100) + '% das comparecidas' : ''}`;
 
   const max = Math.max(vs.length, 1);
-  $('pt-funnel').innerHTML = [['Agendadas', vs.length], ['Compareceram', shown.length], ['Vendas', sales.length]]
+  $('pt-funnel').innerHTML = [['Agendadas', vs.length], ['Compareceram', shown.length], ['Negociação', negotiated.length], ['Vendas', sales.length]]
     .map(([l, n]) => `<div class="f-row"><span>${l}</span><div class="bar"><i style="width:${n ? Math.max(n / max * 100, 3) : 0}%"></i></div><span class="v">${n}</span></div>`).join('')
     + `<div class="f-rate">${vs.length ? Math.round(shown.length / vs.length * 100) : 0}% chegam à visita · ${shown.length ? Math.round(sales.length / shown.length * 100) : 0}% das visitas viram venda</div>`;
 
@@ -1890,12 +2004,21 @@ function ptFeedback() {
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${actions ? `
       <button class="btn-sm btn-ok" data-fb="vendeu" data-id="${esc(v.id)}">Vendeu</button>
       <button class="btn-sm btn-no" data-fb="nao_vendeu" data-id="${esc(v.id)}">Não comprou</button>
+      <button class="btn-sm" data-fb="negociacao" data-id="${esc(v.id)}">Negociação</button>
       <button class="btn-sm" data-fb="reagendar" data-id="${esc(v.id)}">Devolver p/ reagendar</button>` : '<span class="pill pill-late">com a equipe</span>'}</div></div>`; };
   $('pt-fb-wait').innerHTML = wait.length ? wait.map(v => row(v, true)).join('') : '<div class="empty">Nenhuma visita esperando o seu feedback.</div>';
   $('pt-fb-next').innerHTML = next.length ? next.map(v => row(v, true)).join('') : '<div class="empty">Nenhuma visita agendada daqui para frente.</div>';
   $('pt-fb-back-card').hidden = !back.length;
   $('pt-fb-back').innerHTML = back.map(v => row(v, false)).join('');
 }
+$('pt-done').addEventListener('click', e => {
+  const b = e.target.closest('[data-fb]'); if (!b) return;
+  const v = pt.visits.find(x => x.id === b.dataset.id); if (v) openClientFeedback(v, b.dataset.fb);
+});
+$('pt-neg').addEventListener('click', e => {
+  const b = e.target.closest('[data-fb]'); if (!b) return;
+  const v = pt.visits.find(x => x.id === b.dataset.id); if (v) openClientFeedback(v, b.dataset.fb);
+});
 $('pt-feedback').addEventListener('click', e => {
   const b = e.target.closest('[data-fb]'); if (!b) return;
   const v = pt.visits.find(x => x.id === b.dataset.id); if (!v) return;
@@ -1907,6 +2030,7 @@ function openClientFeedback(v, outcome) {
   const cfg = {
     vendeu: { title: 'Vendeu', label: 'Observação da venda (opcional)', ph: 'Unidade, forma de pagamento, condições…', req: false, btn: 'Registrar venda' },
     nao_vendeu: { title: 'Não comprou', label: 'Por que o cliente não comprou?', ph: 'Preço, localização, financiamento, timing…', req: true, btn: 'Registrar' },
+    negociacao: { title: 'Enviar para negociação', label: 'Proposta / condições (opcional)', ph: 'Ex.: proposta com 20% de entrada, aguardando contraproposta', req: false, btn: 'Enviar para negociação' },
     reagendar: { title: 'Devolver para reagendamento', label: 'Recado para a equipe (opcional)', ph: 'Ex.: cliente pediu outro dia, não conseguiu vir…', req: false, btn: 'Devolver para a Digital Moon' },
   }[outcome];
   const form = modal(`
@@ -1924,7 +2048,8 @@ function openClientFeedback(v, outcome) {
       if (!Number.isFinite(vgv) || vgv <= 0) throw new Error('Informe o VGV em reais, por exemplo 850.000,00.');
     }
     await api.clientFeedback(v.id, outcome, vgv, fd.get('note'));
-    toast(outcome === 'vendeu' ? `Venda registrada: ${brl2(vgv)}. Obrigado!` : outcome === 'nao_vendeu' ? 'Feedback registrado. Obrigado!' : 'Visita devolvida para reagendamento.');
+    toast(outcome === 'vendeu' ? `Venda registrada: ${brl2(vgv)}. Obrigado!` : outcome === 'nao_vendeu' ? 'Feedback registrado. Obrigado!'
+      : outcome === 'negociacao' ? 'Lead enviado para a Negociação.' : 'Visita devolvida para reagendamento.');
     await ptLoad();
   });
   const input = form.querySelector('[name=vgv]');
@@ -1934,16 +2059,35 @@ function openClientFeedback(v, outcome) {
 function ptDone() {
   const now = new Date();
   // Vendidas fecham o ciclo: aparecem só na aba Vendas.
-  const vs = ptInPeriod(ptMine()).filter(v => (v.status !== 'agendada' || new Date(v.scheduled_at) < now) && v.sale_status !== 'vendeu').reverse();
+  const vs = ptInPeriod(ptMine()).filter(v => (v.status !== 'agendada' || new Date(v.scheduled_at) < now) && v.sale_status !== 'vendeu' && !inNegotiation(v)).reverse();
   $('pt-done').innerHTML = vs.length ? vs.map(v => {
     const att = v.status === 'realizada' ? '<span class="pill pill-ok">Sim</span>' : v.status === 'nao_compareceu' ? '<span class="pill pill-no">Não</span>'
       : v.reschedule_requested ? '<span class="pill pill-no">Devolvida p/ reagendar</span>' : '<span class="pill pill-late">Aguardando retorno</span>';
-    const res = v.sale_status === 'vendeu' ? '<span class="pill pill-sale">Vendeu</span>' : v.sale_status === 'nao_vendeu' ? '<span class="pill pill-no">Não vendeu</span>' : '<span class="muted">—</span>';
+    const res = v.sale_status === 'nao_vendeu' ? `<span class="pill pill-no">Não comprou</span>${v.negotiated ? '<div class="muted">passou pela mesa</div>' : ''}`
+      : v.status === 'realizada' ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn-sm btn-ok" data-fb="vendeu" data-id="${esc(v.id)}">Vendeu</button>
+          <button class="btn-sm btn-no" data-fb="nao_vendeu" data-id="${esc(v.id)}">Não comprou</button>
+          <button class="btn-sm" data-fb="negociacao" data-id="${esc(v.id)}">Negociação</button></div>`
+      : '<span class="muted">—</span>';
     const obs = [v.completion_notes, v.sale_notes].filter(Boolean).map(esc).join('<br>') || '—';
     return `<tr><td style="white-space:nowrap">${fmtDate(v.scheduled_at)}</td><td>${esc(v.client_name)}</td>
       <td><span class="pill pill-${v.modality}">${v.modality === 'presencial' ? 'Presencial' : 'Online'}</span></td>
-      <td>${att}</td><td>${res}</td><td class="money">${v.sale_status === 'vendeu' ? brl2(v.vgv) : '—'}</td><td style="color:var(--text-secondary)">${obs}</td></tr>`;
-  }).join('') : '<tr><td colspan="7" class="empty">Nenhuma visita concluída no período.</td></tr>';
+      <td>${att}</td><td>${res}</td><td style="color:var(--text-secondary)">${obs}</td></tr>`;
+  }).join('') : '<tr><td colspan="6" class="empty">Nenhuma visita concluída no período.</td></tr>';
+}
+
+function ptNegotiation() {
+  const rows = ptMine().filter(inNegotiation).sort((a, b) => a.negotiation_at.localeCompare(b.negotiation_at));
+  const now = Date.now();
+  $('pt-neg').innerHTML = rows.length ? rows.map(v => { const d = new Date(v.scheduled_at); const days = Math.floor((now - new Date(v.negotiation_at)) / 86400000); return `<div class="pt-item">
+    <div class="pt-date"><b>${pad(d.getDate())}</b><span>${d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span></div>
+    <div><div class="t">${esc(v.client_name)} <span class="pill pill-neg" style="margin-left:4px">na mesa há ${days === 0 ? 'menos de 1 dia' : days + ' dia' + (days === 1 ? '' : 's')}</span></div>
+      <div class="s">${v.negotiation_notes ? esc(v.negotiation_notes) : 'Sem observação da proposta'}</div></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+      <button class="btn-sm btn-ok" data-fb="vendeu" data-id="${esc(v.id)}">Vendeu</button>
+      <button class="btn-sm btn-no" data-fb="nao_vendeu" data-id="${esc(v.id)}">Não comprou</button>
+      <button class="btn-sm" data-fb="reagendar" data-id="${esc(v.id)}">Devolver p/ reagendar</button></div></div>`; }).join('')
+    : '<div class="empty">Nenhum lead em negociação. Em Visitas realizadas, use o botão “Negociação”.</div>';
 }
 
 function ptSales() {

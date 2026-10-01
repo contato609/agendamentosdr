@@ -95,3 +95,16 @@ Abra https://agendamentosdr.sistemadevisitas.com/?demo para usar sem backend (da
 - **Usuário da equipe / cliente do portal**: *Excluir* em Administração. As visitas de um SDR apagado passam para
   quem o gestor escolher. Requer a Edge Function `supabase/functions/delete-user` publicada.
 - Visita **vendida** sai de *Compareceu* e fica só em *Vendeu* (equipe) e em *Vendas* (portal do incorporador).
+
+## Negociação (mesa)
+
+Fluxo: **visita agendada → visita realizada → negociação → venda/não venda** (ou volta para reagendar).
+
+- **Equipe**: em *Visitas realizadas → Compareceu*, o botão **Negociação** leva o lead para a nova aba **Negociação**
+  (antes do Dashboard). Lá: **Vendeu**, **Não vendeu** ou **Devolver p/ reagendar**.
+- **Portal do incorporador**: botão **Negociação** em *Visitas agendadas* e *Visitas realizadas*; nova aba **Negociação**
+  com Vendeu / Não comprou / Devolver p/ reagendar.
+- **Dashboard**: *Em negociação agora*, *Foram para a mesa* (% das comparecidas) e *Conversão da mesa*; coluna
+  *Mesa* nas tabelas por produto e por SDR. No portal: card *Foram para a mesa* e etapa no funil.
+- `negotiated` guarda que o lead passou pela mesa, mesmo se ele voltar para reagendar.
+- Requer `supabase/migrations/20261001000000_negociacao.sql`.
