@@ -57,6 +57,15 @@ function e164(phone: string | null) {
   return '+' + digits;
 }
 
+// O GHL exige um membro da equipe no agendamento. Usamos o primeiro membro configurado no próprio
+// calendário (maior prioridade); a automação do GHL troca para o corretor certo com "Assign user".
+async function calendarUser(conn: Conn): Promise<string | null> {
+  const r = await ghl(conn, `/calendars/${conn.calendar_id}`, { version: '2021-04-15' });
+  const members: any[] = r?.calendar?.teamMembers ?? r?.teamMembers ?? [];
+  const sorted = [...members].sort((a, b) => (b?.priority ?? 0) - (a?.priority ?? 0));
+  return sorted[0]?.userId ?? sorted[0]?.id ?? null;
+}
+
 const statusFor = (s: string) =>
   s === 'realizada' ? 'showed' : s === 'nao_compareceu' ? 'noshow' : 'confirmed';
 
@@ -152,10 +161,14 @@ Deno.serve(async (req) => {
         body: { title, startTime: start.toISOString(), endTime: end.toISOString(), appointmentStatus: statusFor(v.status), ignoreFreeSlotValidation: true },
       });
     } else {
+      const assignedUserId = await calendarUser(conn);
+      if (!assignedUserId) {
+        throw new Error('O calendário de visitas desta subconta não tem nenhum membro da equipe. No GHL, abra o calendário → Equipe/Team members e adicione pelo menos um usuário.');
+      }
       const ap = await ghl(conn, '/calendars/events/appointments', {
         method: 'POST', version: '2021-04-15',
         body: {
-          calendarId: conn.calendar_id, locationId: loc, contactId, title,
+          calendarId: conn.calendar_id, locationId: loc, contactId, title, assignedUserId,
           startTime: start.toISOString(), endTime: end.toISOString(),
           appointmentStatus: statusFor(v.status), ignoreFreeSlotValidation: true, toNotify: true,
         },
