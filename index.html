@@ -588,10 +588,9 @@
       </div>
       <div class="card">
         <div class="card-header">
-          <div><div class="card-title">Integração GoHighLevel</div><div class="muted">Cada visita agendada aqui vira contato + agendamento no calendário de visitas e move a oportunidade para “Visita agendada”.</div></div>
-          <button class="btn-secondary" id="ghl-test-btn">Testar conexão</button>
+          <div><div class="card-title">Integração GoHighLevel</div><div class="muted">Cada empreendimento envia as visitas para a <b>sua subconta</b>: contato + agendamento no calendário de visitas + oportunidade em “Visita agendada”.</div></div>
         </div>
-        <div id="ghl-status" class="muted">Clique em “Testar conexão” para conferir o token e ver os IDs de calendários e pipelines.</div>
+        <div class="table-wrap" id="ghl-list"></div>
       </div>
     </section>
 
@@ -734,8 +733,14 @@ function supabaseApi() {
       }
       return data;
     },
-    async ghlDiscover() {
-      const { data, error } = await sb.functions.invoke('ghl-sync', { body: { action: 'discover' } });
+    async ghlStatus() { return must(await sb.rpc('ghl_connection_status')); },
+    async ghlSetConnection(c) {
+      must(await sb.rpc('set_ghl_connection', { p_product: c.product_id, p_location: c.location_id, p_token: c.token || null,
+        p_calendar: c.calendar_id || null, p_pipeline: c.pipeline_id || null, p_stage: c.stage_id || null }));
+    },
+    async ghlRemove(productId) { must(await sb.rpc('remove_ghl_connection', { p_product: productId })); },
+    async ghlDiscover(productId) {
+      const { data, error } = await sb.functions.invoke('ghl-sync', { body: { action: 'discover', product_id: productId } });
       if (error) {
         let msg = data && data.error;
         try { msg = msg || (await error.context?.json())?.error; } catch {}
@@ -893,7 +898,23 @@ function demoApi() {
     },
     async updateProfile(id, patch) { const u = db.users.find(x => x.id === id); Object.assign(u, patch); save(db); return clone(u); },
     async ghlSync() { return { skipped: 'demo' }; },
-    async ghlDiscover() { return { ok: false, demo: true, missing: [] }; },
+    async ghlStatus() { return clone((db.ghl || []).map(({ token, ...c }) => ({ ...c, has_token: !!token }))); },
+    async ghlSetConnection(c) {
+      db.ghl = db.ghl || [];
+      const cur = db.ghl.find(x => x.product_id === c.product_id);
+      if (!cur && !c.token) throw new Error('Informe o token da subconta.');
+      const next = { ...cur, ...c, token: c.token || cur?.token };
+      db.ghl = db.ghl.filter(x => x.product_id !== c.product_id).concat(next); save(db);
+    },
+    async ghlRemove(productId) { db.ghl = (db.ghl || []).filter(x => x.product_id !== productId); save(db); },
+    // Demonstração: devolve calendários e pipelines de exemplo.
+    async ghlDiscover(productId) {
+      const c = (db.ghl || []).find(x => x.product_id === productId);
+      if (!c) return { ok: false, error: 'Este empreendimento ainda não tem subconta do GHL configurada.' };
+      return { ok: true, configured: { calendar: c.calendar_id, pipeline: c.pipeline_id, stage: c.stage_id },
+        calendars: [{ id: 'cal-demo-1', name: 'Agendamento de Visita' }, { id: 'cal-demo-2', name: 'Reuniões internas' }],
+        pipelines: [{ id: 'pip-demo', name: 'Vendas', stages: [{ id: 'st-1', name: 'Lead novo' }, { id: 'st-2', name: 'Visita agendada' }, { id: 'st-3', name: 'Negociação' }] }] };
+    },
     async deleteUser(userId, transferTo) {
       if (userId === db.session?.user.id) throw new Error('Você não pode apagar o seu próprio acesso.');
       const linked = db.visits.filter(v => v.sdr_id === userId || v.created_by === userId);
@@ -969,6 +990,7 @@ function errMsg(e) {
   if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
   if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail antes de entrar.';
   if (/visits_status_check/i.test(m)) return 'O banco ainda não aceita "aguardando feedback". Rode o SQL 20260929030000_aguardando_feedback.sql no Supabase.';
+  if (/ghl_connection|set_ghl_connection|ghl_connections/i.test(m)) return 'O banco ainda não tem as conexões por empreendimento. Rode o SQL 20261002010000_ghl_por_empreendimento.sql no Supabase.';
   if (/lead_phone|lead_email|ghl_sync|ghl_contact_id|ghl_appointment_id/i.test(m)) return 'O banco ainda não tem os campos da integração. Rode o SQL 20261002000000_integracao_ghl.sql no Supabase.';
   if (/negotiation_at|negotiated|negotiation_notes/i.test(m)) return 'O banco ainda não tem a etapa de Negociação. Rode o SQL 20261001000000_negociacao.sql no Supabase.';
   if (/client_feedback|reschedule_requested|feedback_source/i.test(m)) return 'O banco ainda não tem o feedback do incorporador. Rode o SQL 20260930020000_feedback_incorporador.sql no Supabase.';
@@ -1249,6 +1271,7 @@ function modal(html, onSubmit) {
     if (!form.reportValidity()) return;
     const btn = form.querySelector('[type=submit]'); if (btn) btn.disabled = true;
     const err = form.querySelector('.modal-error');
+    if (err) err.hidden = true;
     try { await onSubmit(new FormData(form), form, e.submitter); close(); }
     catch (ex) { if (err) { err.textContent = errMsg(ex); err.hidden = false; } }
     finally { if (btn) btn.disabled = false; }
@@ -1710,6 +1733,7 @@ function renderAdmin() {
     <td class="actions"><button class="btn-sm" data-edit-product="${esc(p.id)}">Editar</button><button class="btn-sm btn-no" data-delete-product="${esc(p.id)}">Excluir</button></td></tr>`).join('')}</tbody></table>`
     : '<div class="empty">Nenhum produto.</div>';
   renderAdminClients();
+  renderGhl();
   $('admin-users').innerHTML = `<table><tbody>${team().map(u => `<tr>
     <td>${esc(u.full_name)}<div class="muted">${u.role === 'admin' ? 'Gestor' : 'SDR'}</div></td>
     <td>${u.active !== false ? '<span class="pill pill-ok">Ativo</span>' : '<span class="pill pill-no">Inativo</span>'}</td>
@@ -1757,24 +1781,77 @@ function openDeleteUserModal(u) {
   });
 }
 
-$('ghl-test-btn').addEventListener('click', async () => {
-  const btn = $('ghl-test-btn'); btn.disabled = true; btn.textContent = 'Testando…';
-  try {
-    const r = await api.ghlDiscover();
-    const conf = r.configured || {};
-    const names = { GHL_TOKEN: 'token', GHL_LOCATION_ID: 'ID da subconta', GHL_CALENDAR_ID: 'ID do calendário', GHL_PIPELINE_ID: 'ID do pipeline', GHL_STAGE_ID: 'ID da etapa “Visita agendada”' };
-    let html = '';
-    if (r.demo) html = '<div class="alert alert-success">Modo demonstração: a integração só funciona no site real.</div>';
-    else if (r.ok) html = '<div class="alert alert-success">Conexão com o GoHighLevel funcionando.</div>';
-    else html = `<div class="alert alert-error">${esc(r.error || 'Integração ainda não configurada.')}</div>`;
-    if (r.missing?.length) html += `<p style="font-size:13px;margin-bottom:10px">Falta configurar nos segredos do Supabase: <b>${r.missing.map(k => esc(names[k] || k) + ' (' + k + ')').join(', ')}</b>.</p>`;
-    if (r.calendars?.length) html += `<div class="card-title" style="margin:12px 0 6px">Calendários</div><table><thead><tr><th>Nome</th><th>ID (copie para GHL_CALENDAR_ID)</th><th></th></tr></thead><tbody>${r.calendars.map(c => `<tr><td>${esc(c.name)}</td><td><code>${esc(c.id)}</code></td><td>${c.id === conf.calendar ? '<span class="pill pill-ok">em uso</span>' : ''}</td></tr>`).join('')}</tbody></table>`;
-    if (r.pipelines?.length) html += `<div class="card-title" style="margin:14px 0 6px">Pipelines e etapas</div><table><thead><tr><th>Pipeline / etapa</th><th>ID</th><th></th></tr></thead><tbody>${r.pipelines.map(p => `<tr><td><b>${esc(p.name)}</b></td><td><code>${esc(p.id)}</code> <span class="muted">GHL_PIPELINE_ID</span></td><td>${p.id === conf.pipeline ? '<span class="pill pill-ok">em uso</span>' : ''}</td></tr>${p.stages.map(st => `<tr><td style="padding-left:24px">${esc(st.name)}</td><td><code>${esc(st.id)}</code> <span class="muted">GHL_STAGE_ID</span></td><td>${st.id === conf.stage ? '<span class="pill pill-ok">em uso</span>' : ''}</td></tr>`).join('')}`).join('')}</tbody></table>`;
-    $('ghl-status').innerHTML = `<div class="table-wrap">${html}</div>`;
-  } catch (e) {
-    $('ghl-status').innerHTML = `<div class="alert alert-error">${esc(errMsg(e))}</div>`;
-  } finally { btn.disabled = false; btn.textContent = 'Testar conexão'; }
+// ── GoHighLevel por empreendimento (subconta própria) ─────────────────────────
+let ghlConns = [];
+async function renderGhl() {
+  try { ghlConns = await api.ghlStatus(); }
+  catch (e) { $('ghl-list').innerHTML = `<div class="alert alert-error">${esc(errMsg(e))}</div>`; return; }
+  const list = state.products;
+  if (!list.length) { $('ghl-list').innerHTML = '<div class="empty">Cadastre um empreendimento primeiro.</div>'; return; }
+  $('ghl-list').innerHTML = `<table><thead><tr><th>Empreendimento</th><th>Subconta do GHL</th><th>Situação</th><th></th></tr></thead><tbody>${list.map(p => {
+    const c = ghlConns.find(x => x.product_id === p.id);
+    const status = !c ? '<span class="pill pill-online">Não conectado</span>'
+      : c.calendar_id ? `<span class="pill pill-ok">Conectado</span>${c.stage_id ? '' : '<div class="muted">sem etapa do pipeline</div>'}`
+      : '<span class="pill pill-late">Falta escolher o calendário</span>';
+    return `<tr><td><span class="dot" style="background:${esc(p.color)}"></span>${esc(p.name)}</td>
+      <td>${c ? `<code>${esc(c.location_id)}</code>` : '<span class="muted">—</span>'}</td><td>${status}</td>
+      <td class="actions"><button class="btn-sm" data-ghl-edit="${esc(p.id)}">${c ? 'Editar' : 'Conectar'}</button>${c ? `<button class="btn-sm btn-no" data-ghl-remove="${esc(p.id)}">Desconectar</button>` : ''}</td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+$('ghl-list').addEventListener('click', async e => {
+  const ed = e.target.closest('[data-ghl-edit]');
+  if (ed) return openGhlModal(productById(ed.dataset.ghlEdit));
+  const rm = e.target.closest('[data-ghl-remove]'); if (!rm) return;
+  const p = productById(rm.dataset.ghlRemove);
+  modal(`<h2>Desconectar ${esc(p.name)}?</h2><div class="sub">As próximas visitas deste empreendimento deixam de ir para o GoHighLevel. O que já foi enviado continua lá.</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    <div class="modal-actions" style="margin-top:16px"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-danger" type="submit">Desconectar</button></div>`,
+  async () => { await api.ghlRemove(p.id); toast('Empreendimento desconectado do GHL.'); renderGhl(); });
 });
+
+// Passo 1: subconta + token → "Salvar e buscar calendários". Passo 2: escolher calendário, pipeline e etapa.
+function openGhlModal(p, found, notice) {
+  const c = ghlConns.find(x => x.product_id === p.id);
+  const sel = (name, items, current, ph) => `<select name="${name}"><option value="">${ph}</option>${items.map(i => `<option value="${esc(i.id)}" ${i.id === current ? 'selected' : ''}>${esc(i.name)}</option>`).join('')}</select>`;
+  const pipeId = found?.configured?.pipeline ?? c?.pipeline_id;
+  const stagesOf = id => (found?.pipelines || []).find(x => x.id === id)?.stages || [];
+  const form = modal(`
+    <h2>GoHighLevel · ${esc(p.name)}</h2>
+    <div class="sub">Cada empreendimento usa a sua própria subconta.</div>
+    <div class="alert alert-error modal-error" hidden></div>
+    ${notice ? `<div class="alert ${found?.ok ? 'alert-success' : 'alert-error'}">${esc(notice)}</div>` : ''}
+    <div class="field"><label>ID da subconta (Location ID)</label><input name="location_id" type="text" required value="${esc(c?.location_id ?? '')}" placeholder="aparece na URL do GHL, depois de /location/" autocomplete="off"></div>
+    <div class="field"><label>Token da integração privada desta subconta</label><input name="token" type="password" ${c?.has_token ? '' : 'required'} placeholder="${c?.has_token ? 'salvo — deixe em branco para manter' : 'pit-…'}" autocomplete="new-password"></div>
+    ${found?.ok ? `
+      <div class="field"><label>Calendário de agendamento de visita</label>${sel('calendar_id', found.calendars, found.configured?.calendar, 'Escolha o calendário')}</div>
+      <div class="grid2">
+        <div class="field"><label>Pipeline</label>${sel('pipeline_id', found.pipelines, pipeId, 'Sem oportunidade')}</div>
+        <div class="field"><label>Etapa “Visita agendada”</label>${sel('stage_id', stagesOf(pipeId), found.configured?.stage, 'Escolha a etapa')}</div>
+      </div>` : '<p class="muted" style="margin-bottom:8px">Salve a subconta e o token para carregar os calendários e pipelines dela.</p>'}
+    <div class="modal-actions" style="flex-wrap:wrap">
+      <button class="btn-secondary" data-close>Cancelar</button>
+      <button class="btn-secondary" type="submit" value="load">${found?.ok ? 'Recarregar da subconta' : 'Salvar e buscar calendários'}</button>
+      ${found?.ok ? '<button class="btn-primary" type="submit" value="save">Salvar conexão</button>' : ''}
+    </div>`,
+  async (fd, _f, submitter) => {
+    const base = { product_id: p.id, location_id: fd.get('location_id').trim(), token: fd.get('token').trim() };
+    if (submitter?.value === 'save') {
+      if (!fd.get('calendar_id')) throw new Error('Escolha o calendário de agendamento de visita.');
+      if (fd.get('pipeline_id') && !fd.get('stage_id')) throw new Error('Escolha a etapa “Visita agendada” do pipeline.');
+      await api.ghlSetConnection({ ...base, calendar_id: fd.get('calendar_id'), pipeline_id: fd.get('pipeline_id'), stage_id: fd.get('stage_id') });
+      toast(`${p.name} conectado ao GoHighLevel.`); renderGhl(); return;
+    }
+    await api.ghlSetConnection({ ...base, calendar_id: c?.calendar_id, pipeline_id: c?.pipeline_id, stage_id: c?.stage_id });
+    ghlConns = await api.ghlStatus();
+    const r = await api.ghlDiscover(p.id);
+    setTimeout(() => openGhlModal(p, r, r.ok ? 'Subconta conectada. Agora escolha o calendário e a etapa.' : (r.error || 'Não foi possível acessar a subconta. Confira o ID e o token.')), 0);
+  });
+  // Ao trocar o pipeline, recarrega as etapas dele
+  form.querySelector('[name=pipeline_id]')?.addEventListener('change', ev => {
+    const st = form.querySelector('[name=stage_id]');
+    st.innerHTML = '<option value="">Escolha a etapa</option>' + stagesOf(ev.target.value).map(i => `<option value="${esc(i.id)}">${esc(i.name)}</option>`).join('');
+  });
+}
 
 $('add-client-btn').addEventListener('click', () => {
   modal(`

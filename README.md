@@ -120,8 +120,12 @@ Depois: reagendar move o mesmo agendamento; compareceu/não compareceu viram `sh
 O corretor é atribuído pela automação do GHL (gatilho de agendamento → *Assign user* + notificação).
 Falhas não perdem a visita: aparece "não enviada ao GHL" e o botão **Reenviar ao GHL**.
 
+Cada **empreendimento usa a sua própria subconta** do GHL (location, token, calendário, pipeline e etapa),
+configurada em **Administração → Integração GoHighLevel → Conectar**. O token fica na tabela `ghl_connections`,
+que não tem nenhuma política de leitura: só a função `ghl-sync` (no servidor) o usa.
+
 Setup:
-1. Rode `supabase/migrations/20261002000000_integracao_ghl.sql`.
+1. Rode `supabase/migrations/20261002000000_integracao_ghl.sql` e `supabase/migrations/20261002010000_ghl_por_empreendimento.sql`.
 2. Publique a Edge Function `supabase/functions/ghl-sync` (nome `ghl-sync`).
-3. Em Edge Functions → Secrets: `GHL_TOKEN`, `GHL_LOCATION_ID`, `GHL_CALENDAR_ID`, `GHL_PIPELINE_ID`, `GHL_STAGE_ID`.
-   Em Administração → Integração GoHighLevel → *Testar conexão* aparecem os IDs de calendários, pipelines e etapas.
+3. Para cada empreendimento: **Conectar** → ID da subconta + token da integração privada dela →
+   *Salvar e buscar calendários* → escolha o calendário de visitas, o pipeline e a etapa *Visita agendada* → *Salvar conexão*.
