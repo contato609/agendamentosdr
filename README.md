@@ -108,3 +108,20 @@ Fluxo: **visita agendada → visita realizada → negociação → venda/não ve
   *Mesa* nas tabelas por produto e por SDR. No portal: card *Foram para a mesa* e etapa no funil.
 - `negotiated` guarda que o lead passou pela mesa, mesmo se ele voltar para reagendar.
 - Requer `supabase/migrations/20261001000000_negociacao.sql`.
+
+## Integração GoHighLevel (Sistema → GHL)
+
+Ao agendar no sistema, a função `ghl-sync`:
+1. cria/atualiza o **contato** do lead (telefone em E.164, e-mail, tags `visita-agendada` + produto) e grava uma nota com os detalhes;
+2. cria o **agendamento** de 1 hora no calendário de visitas (status confirmado);
+3. move/cria a **oportunidade** na etapa *Visita agendada*.
+
+Depois: reagendar move o mesmo agendamento; compareceu/não compareceu viram `showed`/`noshow`; excluir cancela.
+O corretor é atribuído pela automação do GHL (gatilho de agendamento → *Assign user* + notificação).
+Falhas não perdem a visita: aparece "não enviada ao GHL" e o botão **Reenviar ao GHL**.
+
+Setup:
+1. Rode `supabase/migrations/20261002000000_integracao_ghl.sql`.
+2. Publique a Edge Function `supabase/functions/ghl-sync` (nome `ghl-sync`).
+3. Em Edge Functions → Secrets: `GHL_TOKEN`, `GHL_LOCATION_ID`, `GHL_CALENDAR_ID`, `GHL_PIPELINE_ID`, `GHL_STAGE_ID`.
+   Em Administração → Integração GoHighLevel → *Testar conexão* aparecem os IDs de calendários, pipelines e etapas.

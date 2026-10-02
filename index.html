@@ -586,6 +586,13 @@
         </div>
         <div class="table-wrap" id="admin-clients"></div>
       </div>
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Integração GoHighLevel</div><div class="muted">Cada visita agendada aqui vira contato + agendamento no calendário de visitas e move a oportunidade para “Visita agendada”.</div></div>
+          <button class="btn-secondary" id="ghl-test-btn">Testar conexão</button>
+        </div>
+        <div id="ghl-status" class="muted">Clique em “Testar conexão” para conferir o token e ver os IDs de calendários e pipelines.</div>
+      </div>
     </section>
 
   </div>
@@ -716,6 +723,25 @@ function supabaseApi() {
     // Feedback do incorporador: vendeu / nao_vendeu / reagendar (validado no banco).
     async clientFeedback(visitId, outcome, vgv, note) {
       must(await sb.rpc('client_feedback', { p_visit: visitId, p_outcome: outcome, p_vgv: vgv ?? null, p_note: note ?? null }));
+    },
+    // Integração GoHighLevel: Edge Function `ghl-sync` (o token do GHL fica só no servidor).
+    async ghlSync(visitId, action = 'sync') {
+      const { data, error } = await sb.functions.invoke('ghl-sync', { body: { action, visit_id: visitId } });
+      if (error) {
+        let msg = data && data.error;
+        try { msg = msg || (await error.context?.json())?.error; } catch {}
+        throw new Error(msg || 'Não foi possível falar com o GoHighLevel. Confira se a função ghl-sync está publicada.');
+      }
+      return data;
+    },
+    async ghlDiscover() {
+      const { data, error } = await sb.functions.invoke('ghl-sync', { body: { action: 'discover' } });
+      if (error) {
+        let msg = data && data.error;
+        try { msg = msg || (await error.context?.json())?.error; } catch {}
+        throw new Error(msg || 'A função ghl-sync não respondeu. Confira se ela está publicada no Supabase.');
+      }
+      return data;
     },
     // Exclusão de login: Edge Function `delete-user` (transfere as visitas e apaga o acesso).
     async deleteUser(userId, transferTo) {
@@ -866,6 +892,8 @@ function demoApi() {
       db.visits = db.visits.filter(v => v.product_id !== id); db.products = db.products.filter(p => p.id !== id); save(db);
     },
     async updateProfile(id, patch) { const u = db.users.find(x => x.id === id); Object.assign(u, patch); save(db); return clone(u); },
+    async ghlSync() { return { skipped: 'demo' }; },
+    async ghlDiscover() { return { ok: false, demo: true, missing: [] }; },
     async deleteUser(userId, transferTo) {
       if (userId === db.session?.user.id) throw new Error('Você não pode apagar o seu próprio acesso.');
       const linked = db.visits.filter(v => v.sdr_id === userId || v.created_by === userId);
@@ -941,6 +969,7 @@ function errMsg(e) {
   if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
   if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail antes de entrar.';
   if (/visits_status_check/i.test(m)) return 'O banco ainda não aceita "aguardando feedback". Rode o SQL 20260929030000_aguardando_feedback.sql no Supabase.';
+  if (/lead_phone|lead_email|ghl_sync|ghl_contact_id|ghl_appointment_id/i.test(m)) return 'O banco ainda não tem os campos da integração. Rode o SQL 20261002000000_integracao_ghl.sql no Supabase.';
   if (/negotiation_at|negotiated|negotiation_notes/i.test(m)) return 'O banco ainda não tem a etapa de Negociação. Rode o SQL 20261001000000_negociacao.sql no Supabase.';
   if (/client_feedback|reschedule_requested|feedback_source/i.test(m)) return 'O banco ainda não tem o feedback do incorporador. Rode o SQL 20260930020000_feedback_incorporador.sql no Supabase.';
   if (/client_visits|client_products|profiles_role_check/i.test(m)) return 'O banco ainda não tem o Portal do Cliente. Rode o SQL 20260930010000_portal_cliente.sql no Supabase.';
@@ -1241,6 +1270,10 @@ function openVisitModal({ product_id, date, visit }) {
     <div class="field"><label>Nome do evento</label><input name="title" type="text" value="${esc(visit?.title ?? 'Visita — ' + (prod?.name ?? ''))}" required></div>
     <div class="field"><label>Nome do cliente</label><input name="client_name" type="text" value="${esc(visit?.client_name ?? '')}" required placeholder="Quem vai visitar"></div>
     <div class="grid2">
+      <div class="field"><label>Telefone / WhatsApp do lead</label><input name="lead_phone" type="tel" inputmode="tel" value="${esc(visit?.lead_phone ?? '')}" ${visit ? '' : 'required'} placeholder="(11) 98765-4321" autocomplete="off"></div>
+      <div class="field"><label>E-mail do lead (opcional)</label><input name="lead_email" type="email" value="${esc(visit?.lead_email ?? '')}" placeholder="nome@email.com" autocomplete="off"></div>
+    </div>
+    <div class="grid2">
       <div class="field"><label>Data</label><input name="date" type="date" value="${d ? ymd(d) : date}" min="${visit ? '' : ymd(new Date())}" required></div>
       <div class="field"><label>Horário</label><input name="time" type="time" value="${d ? hm(d) : '10:00'}" required></div>
     </div>
@@ -1264,6 +1297,8 @@ function openVisitModal({ product_id, date, visit }) {
     const payload = {
       title: fd.get('title').trim(),
       client_name: fd.get('client_name').trim(),
+      lead_phone: fd.get('lead_phone').trim() || null,
+      lead_email: fd.get('lead_email').trim() || null,
       scheduled_at: new Date(`${fd.get('date')}T${fd.get('time')}`).toISOString(),
       modality: fd.get('modality'),
       sdr_id: fd.get('sdr_id'),
@@ -1275,16 +1310,23 @@ function openVisitModal({ product_id, date, visit }) {
     if (visit && isAwaitingFeedback(visit) && (dateChanged || visit.reschedule_requested) && new Date(payload.scheduled_at) > new Date()) {
       Object.assign(payload, { status: 'agendada', reschedule_requested: false });
     }
-    if (visit) await api.updateVisit(visit.id, payload);
-    else await api.createVisit({ ...payload, product_id: prod.id });
+    if (payload.lead_phone && payload.lead_phone.replace(/\D/g, '').length < 10) throw new Error('Informe o telefone com DDD, por exemplo (11) 98765-4321.');
+    const saved = visit ? await api.updateVisit(visit.id, payload) : await api.createVisit({ ...payload, product_id: prod.id });
     toast(visit ? 'Visita atualizada.' : 'Visita agendada! Ela já aparece em Visitas agendadas.');
     await refresh();
+    syncGhl(saved?.id ?? visit?.id);
   });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Aba Visitas agendadas
 // ══════════════════════════════════════════════════════════════════════════════
+function ghlBadge(v) {
+  if (v.ghl_sync_status === 'ok') return '<div class="muted" title="Agendamento criado no GoHighLevel">✓ no GoHighLevel</div>';
+  if (v.ghl_sync_status === 'erro') return `<div><span class="pill pill-no" title="${esc(v.ghl_sync_error || '')}">não enviada ao GHL</span></div>`;
+  return '';
+}
+
 function renderAgendadas() {
   const now = new Date();
   const base = filtered('ag').filter(isOpen);
@@ -1308,7 +1350,7 @@ function renderAgendadas() {
       const p = productById(v.product_id);
       return `<tr>
         <td>${fmtDateTime(v.scheduled_at)} ${v.reschedule_requested ? `<span class="pill pill-no">reagendar · ${v.feedback_source === 'cliente' ? 'pedido do incorporador' : 'voltou da negociação'}</span>` : late ? '<span class="pill pill-late">aguardando feedback</span>' : ''}</td>
-        <td>${esc(v.client_name)}${v.notes ? `<div class="muted">${esc(v.notes)}</div>` : ''}${v.reschedule_requested && v.reschedule_note ? `<div class="muted"><b>${v.feedback_source === 'cliente' ? 'Incorporador' : 'Recado'}:</b> ${esc(v.reschedule_note)}</div>` : ''}</td>
+        <td>${esc(v.client_name)}${v.lead_phone ? `<div class="muted">${esc(v.lead_phone)}</div>` : ''}${v.notes ? `<div class="muted">${esc(v.notes)}</div>` : ''}${ghlBadge(v)}${v.reschedule_requested && v.reschedule_note ? `<div class="muted"><b>${v.feedback_source === 'cliente' ? 'Incorporador' : 'Recado'}:</b> ${esc(v.reschedule_note)}</div>` : ''}</td>
         <td><span class="dot" style="background:${esc(p?.color || '#888')}"></span>${esc(productName(v.product_id))}</td>
         <td><span class="pill pill-${v.modality}">${v.modality === 'presencial' ? 'Presencial' : 'Online'}</span></td>
         <td>${esc(sdrName(v.sdr_id))}</td>
@@ -1317,6 +1359,7 @@ function renderAgendadas() {
           <button class="btn-sm btn-no" data-act="noshow" data-id="${esc(v.id)}">Não compareceu</button>
           ${late ? '' : `<button class="btn-sm" data-act="feedback" data-id="${esc(v.id)}" title="A visita já aconteceu: aguardar o retorno do cliente">Aguardando feedback</button>`}
           ${manual && !v.reschedule_requested && new Date(v.scheduled_at) >= now ? `<button class="btn-sm" data-act="unfeedback" data-id="${esc(v.id)}">Voltar p/ agendadas</button>` : ''}
+          ${v.ghl_sync_status === 'erro' ? `<button class="btn-sm" data-act="ghl" data-id="${esc(v.id)}">Reenviar ao GHL</button>` : ''}
           <button class="btn-sm" data-act="edit" data-id="${esc(v.id)}">${v.reschedule_requested ? 'Reagendar' : 'Editar'}</button>
           ${isAdmin() ? `<button class="btn-sm btn-no" data-act="delete" data-id="${esc(v.id)}">Excluir</button>` : ''}
         </td>
@@ -1330,6 +1373,7 @@ $('ag-table').addEventListener('click', async e => {
   if (b.dataset.act === 'done') return openCompleteModal(v, 'realizada');
   if (b.dataset.act === 'noshow') return openCompleteModal(v, 'nao_compareceu');
   if (b.dataset.act === 'delete') return openDeleteVisitModal(v);
+  if (b.dataset.act === 'ghl') { b.disabled = true; b.textContent = 'Enviando…'; return syncGhl(v.id); }
   if (b.dataset.act === 'feedback' || b.dataset.act === 'unfeedback') {
     const toFeedback = b.dataset.act === 'feedback';
     b.disabled = true;
@@ -1341,6 +1385,18 @@ $('ag-table').addEventListener('click', async e => {
   }
 });
 
+// Envia a visita ao GoHighLevel sem travar a tela; falhas ficam marcadas na visita para reenviar.
+async function syncGhl(visitId, action = 'sync') {
+  if (!visitId) return;
+  try {
+    const r = await api.ghlSync(visitId, action);
+    if (r?.ok && action === 'sync') toast('Visita enviada ao GoHighLevel.');
+  } catch (e) {
+    if (action === 'sync') toast('Visita salva, mas não foi enviada ao GoHighLevel: ' + errMsg(e));
+  }
+  if (action === 'sync') await refresh();
+}
+
 function openDeleteVisitModal(v) {
   modal(`
     <h2>Excluir visita?</h2>
@@ -1349,6 +1405,7 @@ function openDeleteVisitModal(v) {
     <p style="font-size:14px">A visita some da agenda, do portal do incorporador e do dashboard. Não dá para desfazer.</p>
     <div class="modal-actions" style="margin-top:16px"><button class="btn-secondary" data-close>Cancelar</button><button class="btn-danger" type="submit">Excluir visita</button></div>`,
   async () => {
+    if (v.ghl_appointment_id) await syncGhl(v.id, 'cancel');
     await api.deleteVisit(v.id);
     toast('Visita excluída.'); await refresh();
   });
@@ -1368,6 +1425,7 @@ function openCompleteModal(v, status) {
     </div>`,
   async fd => {
     await api.updateVisit(v.id, { status, completion_notes: fd.get('completion_notes').trim() || null, completed_at: new Date().toISOString() });
+    if (v.ghl_appointment_id) syncGhl(v.id);
     toast(done ? 'Visita movida para Visitas realizadas.' : 'Visita registrada como não comparecida.');
     await refresh();
   });
@@ -1698,6 +1756,25 @@ function openDeleteUserModal(u) {
     toast(client ? 'Cliente apagado.' : 'Acesso apagado.'); await refresh();
   });
 }
+
+$('ghl-test-btn').addEventListener('click', async () => {
+  const btn = $('ghl-test-btn'); btn.disabled = true; btn.textContent = 'Testando…';
+  try {
+    const r = await api.ghlDiscover();
+    const conf = r.configured || {};
+    const names = { GHL_TOKEN: 'token', GHL_LOCATION_ID: 'ID da subconta', GHL_CALENDAR_ID: 'ID do calendário', GHL_PIPELINE_ID: 'ID do pipeline', GHL_STAGE_ID: 'ID da etapa “Visita agendada”' };
+    let html = '';
+    if (r.demo) html = '<div class="alert alert-success">Modo demonstração: a integração só funciona no site real.</div>';
+    else if (r.ok) html = '<div class="alert alert-success">Conexão com o GoHighLevel funcionando.</div>';
+    else html = `<div class="alert alert-error">${esc(r.error || 'Integração ainda não configurada.')}</div>`;
+    if (r.missing?.length) html += `<p style="font-size:13px;margin-bottom:10px">Falta configurar nos segredos do Supabase: <b>${r.missing.map(k => esc(names[k] || k) + ' (' + k + ')').join(', ')}</b>.</p>`;
+    if (r.calendars?.length) html += `<div class="card-title" style="margin:12px 0 6px">Calendários</div><table><thead><tr><th>Nome</th><th>ID (copie para GHL_CALENDAR_ID)</th><th></th></tr></thead><tbody>${r.calendars.map(c => `<tr><td>${esc(c.name)}</td><td><code>${esc(c.id)}</code></td><td>${c.id === conf.calendar ? '<span class="pill pill-ok">em uso</span>' : ''}</td></tr>`).join('')}</tbody></table>`;
+    if (r.pipelines?.length) html += `<div class="card-title" style="margin:14px 0 6px">Pipelines e etapas</div><table><thead><tr><th>Pipeline / etapa</th><th>ID</th><th></th></tr></thead><tbody>${r.pipelines.map(p => `<tr><td><b>${esc(p.name)}</b></td><td><code>${esc(p.id)}</code> <span class="muted">GHL_PIPELINE_ID</span></td><td>${p.id === conf.pipeline ? '<span class="pill pill-ok">em uso</span>' : ''}</td></tr>${p.stages.map(st => `<tr><td style="padding-left:24px">${esc(st.name)}</td><td><code>${esc(st.id)}</code> <span class="muted">GHL_STAGE_ID</span></td><td>${st.id === conf.stage ? '<span class="pill pill-ok">em uso</span>' : ''}</td></tr>`).join('')}`).join('')}</tbody></table>`;
+    $('ghl-status').innerHTML = `<div class="table-wrap">${html}</div>`;
+  } catch (e) {
+    $('ghl-status').innerHTML = `<div class="alert alert-error">${esc(errMsg(e))}</div>`;
+  } finally { btn.disabled = false; btn.textContent = 'Testar conexão'; }
+});
 
 $('add-client-btn').addEventListener('click', () => {
   modal(`
